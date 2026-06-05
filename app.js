@@ -24,8 +24,9 @@ const copyWhatsAppButton = document.querySelector("#copyWhatsAppButton");
 const copyWhatsAppLabel = copyWhatsAppButton.querySelector("span");
 const shareComparisonButton = document.querySelector("#shareComparisonButton");
 
-const formatSelectionLine = /(?:^|\s)([A-Z]{3})\s*(?:-|:)\s*(.*)$/;
-const codedSticker = /\b([A-Z]{3,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
+const selectionLineSimple = /(?:^|\s)([A-Z]{2,4})\s*-\s*((?:\d|00).*)$/;
+const selectionLineDecorated = /(?:^|\s)([A-Z]{2,4})\b[^:,-]*:\s*((?:\d|00).*)$/;
+const codedSticker = /\b([A-Z]{2,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
 const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const extraSticker = /\b(REGU|BRON|PRAT|OURO)\b(?:\s*\(x\s*([0-9]+)\))?/gi;
@@ -37,6 +38,7 @@ let hasCompared = false;
 
 const TRADE_KINDS = {
   FWC: "fwc",
+  CC: "cc",
   SPECIAL: "special",
   STANDARD: "standard",
   SAME_NUMBER: "sameNumber",
@@ -44,6 +46,7 @@ const TRADE_KINDS = {
 
 const TRADE_KIND_LABELS = {
   [TRADE_KINDS.FWC]: "FWC",
+  [TRADE_KINDS.CC]: "CC",
   [TRADE_KINDS.SPECIAL]: "1 ou 13",
   [TRADE_KINDS.STANDARD]: "Demais",
   [TRADE_KINDS.SAME_NUMBER]: "Mesmo número",
@@ -67,14 +70,10 @@ function parseList(rawText, mode) {
     .toUpperCase();
 
   text.split(/\r?\n/).forEach((line) => {
-    const formatSelectionMatch = line.match(formatSelectionLine);
-    if (formatSelectionMatch) {
-      const prefix = normalizePrefix(formatSelectionMatch[1]);
-      const stickers = [...formatSelectionMatch[2].matchAll(selectionSticker)];
-      stickers.forEach((match) => {
-        const number = Number(match[1]);
-        const quantity = mode === "repeated" ? Number(match[2] || match[3] || 1) : 1;
-        addItem(items, stickerCode(prefix, number), quantity);
+    const selectionLine = parseSelectionLine(line);
+    if (selectionLine) {
+      selectionLine.stickers.forEach(({ number, quantity }) => {
+        addItem(items, stickerCode(selectionLine.prefix, number), mode === "repeated" ? quantity : 1);
       });
       return;
     }
@@ -98,6 +97,22 @@ function parseList(rawText, mode) {
   });
 
   return items;
+}
+
+function parseSelectionLine(line) {
+  const match = line.match(selectionLineSimple) || line.match(selectionLineDecorated);
+  if (!match) return null;
+
+  const stickers = [...match[2].matchAll(selectionSticker)].map((stickerMatch) => ({
+    number: Number(stickerMatch[1]),
+    quantity: Number(stickerMatch[2] || stickerMatch[3] || 1),
+  }));
+
+  if (stickers.length === 0) return null;
+  return {
+    prefix: normalizePrefix(match[1]),
+    stickers,
+  };
 }
 
 function addItem(items, code, quantity) {
@@ -199,7 +214,7 @@ function groupItems(items) {
     .map(([code, quantity]) => ({ code, quantity }))
     .sort((a, b) => compareSticker(a.code, b.code))
     .forEach((item) => {
-      const match = item.code.match(/^([A-Z]{3,4})(\d+)$/);
+      const match = item.code.match(/^([A-Z]{2,4})(\d+)$/);
       if (!match) {
         looseItems.push(item);
         return;
@@ -239,6 +254,10 @@ function stickerKind(code) {
 
   if (prefix === "FWC") {
     return TRADE_KINDS.FWC;
+  }
+
+  if (prefix === "CC") {
+    return TRADE_KINDS.CC;
   }
 
   if (number === 1 || number === 13) {
@@ -308,7 +327,7 @@ function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, o
     return trades;
   }
 
-  [TRADE_KINDS.FWC, TRADE_KINDS.SPECIAL, TRADE_KINDS.STANDARD].forEach((kind) => {
+  [TRADE_KINDS.FWC, TRADE_KINDS.CC, TRADE_KINDS.SPECIAL, TRADE_KINDS.STANDARD].forEach((kind) => {
     const userPool = userCanGive.filter((item) => item.kind === kind);
     const friendPool = friendCanGive.filter((item) => item.kind === kind);
     const amount = Math.min(userPool.length, friendPool.length);
@@ -328,7 +347,14 @@ function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, o
 function canTradeSameNumber(userInfo, friendInfo) {
   if (userInfo.number === null || friendInfo.number === null) return false;
   if (userInfo.number !== friendInfo.number) return false;
-  return (userInfo.prefix === "FWC") === (friendInfo.prefix === "FWC");
+  if (isSpecialFamily(userInfo.prefix) || isSpecialFamily(friendInfo.prefix)) {
+    return userInfo.prefix === friendInfo.prefix;
+  }
+  return true;
+}
+
+function isSpecialFamily(prefix) {
+  return prefix === "FWC" || prefix === "CC";
 }
 
 function compare() {
@@ -571,7 +597,7 @@ function handleFormChanged() {
 }
 
 function whatsappKindLabel(kind) {
-  if (kind === TRADE_KINDS.FWC) return kindLabel(kind);
+  if (kind === TRADE_KINDS.FWC || kind === TRADE_KINDS.CC) return kindLabel(kind);
   return "";
 }
 
@@ -580,7 +606,7 @@ function whatsappStrategyText() {
     return "Nesta proposta combinei somente figurinhas com mesmo número.";
   }
 
-  return "Nesta proposta estou considerando a troca de FWC com FWC e 1 e 13 somente entre elas.";
+  return "Nesta proposta estou considerando a troca de FWC com FWC, CC com CC e 1 e 13 somente entre elas.";
 }
 
 async function copyWhatsAppText() {
