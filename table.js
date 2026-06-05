@@ -221,7 +221,7 @@ function renderBody(userMissing, userRepeated, hasData) {
       const cell = document.createElement("td");
       const tooltip = formatStickerTooltip(code, team);
       cell.textContent = number;
-      cell.title = tooltip;
+      cell.setAttribute("aria-label", tooltip);
       cell.tabIndex = 0;
       cell.dataset.tooltip = tooltip;
 
