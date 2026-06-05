@@ -24,8 +24,8 @@ const copyWhatsAppButton = document.querySelector("#copyWhatsAppButton");
 const copyWhatsAppLabel = copyWhatsAppButton.querySelector("span");
 const shareComparisonButton = document.querySelector("#shareComparisonButton");
 
-const formatSelectionLine = /(?:^|\s)([A-Z]{3})\s*(?:-|:)\s*(.*)$/;
-const codedSticker = /\b([A-Z]{3,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
+const formatSelectionLine = /^\s*([A-Z]{2,4})\b[^:,-]*(?:-|:)\s*(.*)$/;
+const codedSticker = /\b([A-Z]{2,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
 const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const extraSticker = /\b(REGU|BRON|PRAT|OURO)\b(?:\s*\(x\s*([0-9]+)\))?/gi;
