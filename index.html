@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Troca de Figurinhas da Copa</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <div class="site-bar">
+        <span>GitHub Pages</span>
+        <a href="https://laubstein.github.io/comparador-figurinhas/" target="_blank" rel="noreferrer">
+          https://laubstein.github.io/comparador-figurinhas/
+        </a>
+      </div>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Copa do Mundo 2026</p>
+          <h1>Comparador de trocas</h1>
+          <p class="subtitle">
+            Cole as figurinhas faltando e repetidas de cada pessoa para montar uma proposta de troca.
+          </p>
+          <label class="toggle-option" for="showNamesToggle">
+            <input id="showNamesToggle" type="checkbox">
+            <span>Exibir nome dos jogadores</span>
+          </label>
+        </div>
+        <div class="scoreboard" aria-label="Resumo da comparação">
+          <span id="userGivesCount">0</span>
+          <strong>trocas possíveis</strong>
+          <small>respeitando FWC, 1 e 13</small>
+        </div>
+      </section>
+
+      <section class="form-grid" aria-label="Dados dos colecionadores">
+        <article class="collector-panel">
+          <div class="panel-heading">
+            <div class="panel-title">
+              <span class="badge badge-home">Você</span>
+              <h2>Suas figurinhas</h2>
+            </div>
+            <div class="format-actions" aria-label="Converter suas figurinhas">
+              <button class="mini-button" type="button" data-format-target="user" data-format="selection">Para formato seleção</button>
+              <button class="mini-button" type="button" data-format-target="user" data-format="app">Para formato app</button>
+            </div>
+          </div>
+          <label for="userMissing">Faltando</label>
+          <textarea id="userMissing" spellcheck="false" placeholder="Cole aqui o conteúdo de faltando.txt ou faltando_b.txt"></textarea>
+
+          <label for="userRepeated">Repetidas</label>
+          <textarea id="userRepeated" spellcheck="false" placeholder="Cole aqui o conteúdo de repetidas.txt ou repetidas_b.txt"></textarea>
+        </article>
+
+        <article class="collector-panel">
+          <div class="panel-heading">
+            <div class="panel-title">
+              <span class="badge badge-away">Amigo</span>
+              <h2>Figurinhas do amigo/colega</h2>
+            </div>
+            <div class="format-actions" aria-label="Converter figurinhas do amigo/colega">
+              <button class="mini-button" type="button" data-format-target="friend" data-format="selection">Para formato seleção</button>
+              <button class="mini-button" type="button" data-format-target="friend" data-format="app">Para formato app</button>
+            </div>
+          </div>
+          <label for="friendMissing">Faltando</label>
+          <textarea id="friendMissing" spellcheck="false" placeholder="Cole aqui as figurinhas que faltam para seu amigo"></textarea>
+
+          <label for="friendRepeated">Repetidas</label>
+          <textarea id="friendRepeated" spellcheck="false" placeholder="Cole aqui as figurinhas repetidas do seu amigo"></textarea>
+        </article>
+      </section>
+
+      <section class="toolbar" aria-label="Ações">
+        <button id="compareButton" type="button">Comparar</button>
+        <button id="clearButton" class="secondary" type="button">Limpar</button>
+        <button id="helpButton" class="secondary" type="button" aria-haspopup="dialog">Ajuda</button>
+        <div class="summary-stack">
+          <p id="parseSummary" class="parse-summary">Aguardando dados.</p>
+          <p id="impactSummary" class="impact-summary" hidden></p>
+        </div>
+      </section>
+
+      <section class="results" aria-live="polite">
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">Cruzamento para troca</p>
+            <h2>Proposta equilibrada</h2>
+          </div>
+          <div class="legend">
+            <span><i class="dot dot-fwc"></i> FWC</span>
+            <span><i class="dot dot-special"></i> 1 ou 13</span>
+            <span><i class="dot dot-standard"></i> Demais</span>
+          </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          Informe os quatro campos e clique em comparar.
+        </div>
+
+        <div class="table-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Você entrega</th>
+                <th>Amigo entrega</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody id="tradeRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+      <div class="help-card">
+        <div class="help-heading">
+          <div>
+            <p class="eyebrow">Ajuda</p>
+            <h2 id="helpTitle">Como usar o comparador</h2>
+          </div>
+          <button id="closeHelpButton" class="icon-button" type="button" aria-label="Fechar ajuda">x</button>
+        </div>
+
+        <div class="help-content">
+          <p>
+            Preencha os quatro campos: suas faltantes, suas repetidas, faltantes do amigo e repetidas do amigo.
+            Depois clique em comparar para montar uma proposta de troca.
+          </p>
+          <p>
+            A tabela mostra apenas trocas em que uma figurinha sua falta para o amigo e uma figurinha do amigo
+            falta para você. Cada código aparece no máximo uma vez em cada lado da proposta.
+          </p>
+          <p>
+            Regras especiais: FWC só troca com FWC; figurinhas número 1 e 13 só trocam entre si; as demais
+            trocam apenas com outras figurinhas comuns.
+          </p>
+
+          <h3>Formato do app Álbum de Figurinhas Copa 2026</h3>
+          <pre><code>🇰🇷 *KOR* · pg. 12-13
+KOR1 (x1), KOR7 (x1), KOR8 (x1)
+
+*Copa 2026* · pg. 1
+FWC1, FWC3</code></pre>
+
+          <h3>Formato por selecao</h3>
+          <pre><code>🇧🇷 BRA - 6, 10, 14
+🇰🇷 KOR - 1, 7, 8
+🏳️ FWC - 1, 4, 5</code></pre>
+
+          <p>
+            Em repetidas, quando houver quantidade como <strong>KOR1 (x2)</strong>, ela é usada apenas para
+            contar repetidas. Na proposta final, a mesma figurinha não será oferecida duas vezes para a mesma pessoa.
+          </p>
+          <p>
+            A opção de exibir nomes usa um de/para estático incluído no JavaScript. A coleção oficial foi verificada
+            na Panini, e os nomes foram extraídos do checklist público do SkDojo.
+          </p>
+          <h3>Licença e responsabilidade</h3>
+          <p>
+            Este projeto é distribuído sob a licença MIT. O site foi criado com auxílio de IA e é fornecido como está,
+            sem garantia de disponibilidade, precisão dos dados ou adequação para qualquer finalidade. Os autores não
+            se responsabilizam por perdas, divergências em trocas ou qualquer consequência do uso da aplicação.
+          </p>
+        </div>
+      </div>
+    </dialog>
+
+    <footer class="privacy-footer">
+      Nenhum dado é coletado. Site estático criado com auxílio de IA, sem garantias e sem responsabilidade por seu uso.
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
