@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minha Tabela de Figurinhas</title>
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="table-page">
+    <header class="print-only print-title">COPA 2026 - TABELA DE FIGURINHAS</header>
+    <main class="table-shell">
+      <header class="table-page-header">
+        <a id="backToComparator" class="back-link" href="./">Voltar ao comparador</a>
+        <div class="table-title-row">
+          <div>
+            <p class="eyebrow">Copa do Mundo 2026</p>
+            <h1>Minha tabela</h1>
+            <p id="tableSummary" class="table-summary">Carregando suas figurinhas.</p>
+            <p class="table-hint">Passe o mouse ou clique em uma figurinha para visualizar sua identificação.</p>
+          </div>
+          <button id="printButton" class="gold-button" type="button">Imprimir</button>
+        </div>
+      </header>
+
+      <section class="sticker-board" aria-label="Tabela de figurinhas por seleção">
+        <div class="table-legend" aria-label="Legenda">
+          <span><i class="legend-cell have-a"></i> Tenho</span>
+          <span><i class="legend-cell have-b"></i> Tenho</span>
+          <span><i class="legend-cell missing"></i> Faltando</span>
+        </div>
+        <div class="album-table-wrap">
+          <table class="album-table">
+            <colgroup id="albumTableColumns"></colgroup>
+            <thead id="albumTableHead"></thead>
+            <tbody id="albumTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="privacy-footer">
+      <p>Compartilhe este comparador com outras pessoas que também estão completando o álbum.</p>
+      <p>
+        <span>Nenhum dado é coletado. Site estático criado com auxílio de IA, sem garantias e sem responsabilidade por seu uso.</span>
+        <span class="footer-separator" aria-hidden="true">|</span>
+        <a href="https://github.com/laubstein/comparador-figurinhas" target="_blank" rel="noreferrer" aria-label="Projeto no GitHub para desenvolvedores">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.6.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1.1 1.6 1.1.9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.7-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1.1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .9-.3 2.8 1.1.8-.2 1.6-.3 2.5-.3s1.7.1 2.5.3c1.9-1.4 2.8-1.1 2.8-1.1.6 1.4.2 2.4.1 2.7.7.8 1.1 1.7 1.1 2.8 0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 2v3c0 .3.2.6.7.5 4-1.3 6.8-5.1 6.8-9.6C22 6.6 17.5 2 12 2Z"/>
+          </svg>
+          <span>PARA DESENVOLVEDORES</span>
+        </a>
+      </p>
+    </footer>
+    <footer class="print-only print-footer">
+      Gere a sua também em https://laubstein.github.io/comparador-figurinhas/
+    </footer>
+    <div id="stickerTooltip" class="sticker-tooltip" role="status" aria-live="polite" hidden></div>
+
+    <script src="sticker-data.js"></script>
+    <script src="table.js"></script>
+  </body>
+</html>

@@ -9,28 +9,41 @@ fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
-const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const minifiedCss = minifyCss(css);
-const minifiedJs = minifyJs(js);
 const cssFile = `styles.${contentHash(minifiedCss)}.min.css`;
-const jsFile = `app.${contentHash(minifiedJs)}.min.js`;
+const pages = [
+  { html: "index.html", scripts: ["sticker-data.js", "app.js"] },
+  { html: "tabela.html", scripts: ["sticker-data.js", "table.js"] },
+];
+const scriptFiles = new Map();
 
 fs.writeFileSync(path.join(dist, cssFile), minifiedCss);
-fs.writeFileSync(path.join(dist, jsFile), minifiedJs);
 fs.writeFileSync(path.join(dist, "LICENSE"), fs.readFileSync(path.join(root, "LICENSE"), "utf8"));
 fs.mkdirSync(path.join(dist, "assets"), { recursive: true });
 for (const asset of ["favicon.svg", "og-image.png"]) {
   fs.copyFileSync(path.join(root, "assets", asset), path.join(dist, "assets", asset));
 }
 
-const distHtml = minifyHtml(
-  html
-    .replace('href="styles.css"', `href="${cssFile}"`)
-    .replace('src="app.js"', `src="${jsFile}"`)
-);
+pages.forEach(({ scripts }) => {
+  scripts.forEach((script) => {
+    if (scriptFiles.has(script)) return;
+    const sourceJs = fs.readFileSync(path.join(root, script), "utf8");
+    const minifiedJs = minifyJs(sourceJs);
+    const jsFile = `${path.basename(script, ".js")}.${contentHash(minifiedJs)}.min.js`;
 
-fs.writeFileSync(path.join(dist, "index.html"), distHtml);
+    fs.writeFileSync(path.join(dist, jsFile), minifiedJs);
+    scriptFiles.set(script, jsFile);
+  });
+});
+
+pages.forEach(({ html, scripts }) => {
+  const sourceHtml = fs.readFileSync(path.join(root, html), "utf8");
+  const distHtml = minifyHtml(scripts.reduce((currentHtml, script) => {
+    return currentHtml.replace(`src="${script}"`, `src="${scriptFiles.get(script)}"`);
+  }, sourceHtml.replace('href="styles.css"', `href="${cssFile}"`)));
+
+  fs.writeFileSync(path.join(dist, html), distHtml);
+});
 
 function minifyCss(source) {
   return source
