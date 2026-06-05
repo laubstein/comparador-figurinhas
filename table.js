@@ -4,6 +4,7 @@ const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
 const SHARE_LOOSE_GROUP = "x";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
+const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const STICKERS_PER_TEAM = 20;
 const { TEAM_FLAGS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
 
@@ -103,19 +104,39 @@ function decodeCompactSection(section = "") {
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
 
-    [...value]
-      .map(shareCharToNumber)
-      .filter((number) => number !== null)
-      .forEach((number) => items.add(`${prefix}${number}`));
+    shareNumbers(value).forEach((number) => {
+      items.add(`${prefix}${number}`);
+    });
   });
 
   return items;
+}
+
+function shareNumbers(value) {
+  const numbers = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (isShareQuantityChar(value[index]) && index + 1 < value.length) {
+      index += 1;
+    }
+
+    const number = shareCharToNumber(value[index]);
+    if (number !== null) {
+      numbers.push(number);
+    }
+  }
+
+  return numbers;
 }
 
 function shareCharToNumber(char) {
   if (char === "0") return 0;
   const index = STICKER_NUMBER_CHARS.indexOf(char);
   return index === -1 ? null : index + 1;
+}
+
+function isShareQuantityChar(char) {
+  return SHARE_QUANTITY_CHARS.includes(char);
 }
 
 function renderTable() {

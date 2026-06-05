@@ -49,6 +49,7 @@ window.STICKER_DATA = (() => {
   URU: "🇺🇾",
   USA: "🇺🇸",
   UZB: "🇺🇿",
+  CC: "🥤",
 };
 
   const STICKER_NAMES = {

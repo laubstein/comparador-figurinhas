@@ -5,17 +5,20 @@ const fields = {
   friendRepeated: document.querySelector("#friendRepeated"),
 };
 
-const compareButton = document.querySelector("#compareButton");
 const clearButton = document.querySelector("#clearButton");
 const tableButton = document.querySelector("#tableButton");
 const helpButton = document.querySelector("#helpButton");
 const closeHelpButton = document.querySelector("#closeHelpButton");
 const helpDialog = document.querySelector("#helpDialog");
 const showNamesToggle = document.querySelector("#showNamesToggle");
-const sameNumberToggle = document.querySelector("#sameNumberToggle");
+const strategyHelpButton = document.querySelector("#strategyHelpButton");
+const strategyHelp = document.querySelector("#strategyHelp");
+const strategyInputs = [...document.querySelectorAll("input[name='tradeStrategy']")];
 const parseSummary = document.querySelector("#parseSummary");
 const impactSummary = document.querySelector("#impactSummary");
 const userGivesCount = document.querySelector("#userGivesCount");
+const resultTitle = document.querySelector("#resultTitle");
+const resultDescription = document.querySelector("#resultDescription");
 const tradeRows = document.querySelector("#tradeRows");
 const emptyState = document.querySelector("#emptyState");
 const tableWrap = document.querySelector(".table-wrap");
@@ -57,10 +60,25 @@ const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
 const SHARE_LOOSE_GROUP = "x";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
+const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COPY_WHATSAPP_LABEL = "Copiar para WhatsApp";
 const SHARE_COMPARISON_LABEL = "Compartilhar Comparação";
 const FEEDBACK_TIMEOUT_MS = 1800;
 let urlSyncTimer = null;
+
+const TRADE_STRATEGIES = {
+  DIRECT: "0",
+  SAME_NUMBER: "1",
+  REPEATED: "2",
+  BALANCED_REPEATED: "3",
+};
+
+const TRADE_STRATEGY_LABELS = {
+  [TRADE_STRATEGIES.DIRECT]: "Direta",
+  [TRADE_STRATEGIES.SAME_NUMBER]: "Mesmo número",
+  [TRADE_STRATEGIES.REPEATED]: "Repetidas",
+  [TRADE_STRATEGIES.BALANCED_REPEATED]: "Repetidas balanceadas",
+};
 
 function parseList(rawText, mode) {
   const items = new Map();
@@ -302,30 +320,58 @@ function compareSticker(a, b) {
   return (aInfo.number || 0) - (bInfo.number || 0);
 }
 
-function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, options = {}) {
-  const userCanGive = expandedMatches(userRepeated, friendMissing);
-  const friendCanGive = expandedMatches(friendRepeated, userMissing);
+function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, strategy = TRADE_STRATEGIES.DIRECT) {
+  const pools = tradePools(userRepeated, userMissing, friendRepeated, friendMissing, strategy);
+  return strategy === TRADE_STRATEGIES.SAME_NUMBER
+    ? pairSameNumberTrades(pools.userCanGive, pools.friendCanGive)
+    : pairByKindTrades(pools.userCanGive, pools.friendCanGive);
+}
+
+function tradePools(userRepeated, userMissing, friendRepeated, friendMissing, strategy) {
+  if (strategy === TRADE_STRATEGIES.REPEATED) {
+    return {
+      userCanGive: expandedMatches(userRepeated, friendMissing),
+      friendCanGive: repeatedTradeReturns(friendRepeated, userRepeated),
+    };
+  }
+
+  if (strategy === TRADE_STRATEGIES.BALANCED_REPEATED) {
+    return {
+      userCanGive: balancedRepeatedReturns(userRepeated, friendRepeated),
+      friendCanGive: balancedRepeatedReturns(friendRepeated, userRepeated),
+    };
+  }
+
+  return {
+    userCanGive: expandedMatches(userRepeated, friendMissing),
+    friendCanGive: expandedMatches(friendRepeated, userMissing),
+  };
+}
+
+function pairSameNumberTrades(userCanGive, friendCanGive) {
   const trades = [];
 
-  if (options.sameNumber) {
-    userCanGive.forEach((userItem) => {
-      const userInfo = stickerInfo(userItem.code);
-      const friendIndex = friendCanGive.findIndex((friendItem) => {
-        return canTradeSameNumber(userInfo, stickerInfo(friendItem.code));
-      });
-
-      if (friendIndex === -1) return;
-
-      const [friendItem] = friendCanGive.splice(friendIndex, 1);
-      trades.push({
-        give: userItem.code,
-        receive: friendItem.code,
-        kind: TRADE_KINDS.SAME_NUMBER,
-      });
+  userCanGive.forEach((userItem) => {
+    const userInfo = stickerInfo(userItem.code);
+    const friendIndex = friendCanGive.findIndex((friendItem) => {
+      return canTradeSameNumber(userInfo, stickerInfo(friendItem.code));
     });
 
-    return trades;
-  }
+    if (friendIndex === -1) return;
+
+    const [friendItem] = friendCanGive.splice(friendIndex, 1);
+    trades.push({
+      give: userItem.code,
+      receive: friendItem.code,
+      kind: TRADE_KINDS.SAME_NUMBER,
+    });
+  });
+
+  return trades;
+}
+
+function pairByKindTrades(userCanGive, friendCanGive) {
+  const trades = [];
 
   [TRADE_KINDS.FWC, TRADE_KINDS.CC, TRADE_KINDS.SPECIAL, TRADE_KINDS.STANDARD].forEach((kind) => {
     const userPool = userCanGive.filter((item) => item.kind === kind);
@@ -344,6 +390,28 @@ function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, o
   return trades;
 }
 
+function repeatedTradeReturns(sourceRepeated, targetRepeated) {
+  const matches = [];
+
+  sourceRepeated.forEach((quantity, code) => {
+    if (targetRepeated.has(code) || quantity < 1) return;
+    matches.push({ code, kind: stickerKind(code) });
+  });
+
+  return matches.sort((a, b) => compareSticker(a.code, b.code));
+}
+
+function balancedRepeatedReturns(sourceRepeated, targetRepeated) {
+  const matches = [];
+
+  sourceRepeated.forEach((quantity, code) => {
+    if (targetRepeated.has(code) || quantity < 2) return;
+    matches.push({ code, kind: stickerKind(code) });
+  });
+
+  return matches.sort((a, b) => compareSticker(a.code, b.code));
+}
+
 function canTradeSameNumber(userInfo, friendInfo) {
   if (userInfo.number === null || friendInfo.number === null) return false;
   if (userInfo.number !== friendInfo.number) return false;
@@ -359,9 +427,7 @@ function isSpecialFamily(prefix) {
 
 function compare() {
   const parsed = getParsedInputs();
-  const trades = buildTrades(parsed.userRepeated, parsed.userMissing, parsed.friendRepeated, parsed.friendMissing, {
-    sameNumber: sameNumberToggle.checked,
-  });
+  const trades = buildTrades(parsed.userRepeated, parsed.userMissing, parsed.friendRepeated, parsed.friendMissing, selectedStrategy());
 
   currentTrades = trades;
   hasCompared = true;
@@ -378,7 +444,63 @@ function renderSummary(parsed) {
     `Pessoa: ${parsed.friendMissing.size} faltando, ${totalQuantity(parsed.friendRepeated)} repetidas`,
   ].join(" | ");
 
+  renderResultContext(parsed);
   renderImpactSummary(parsed);
+}
+
+function renderResultContext(parsed) {
+  const strategy = selectedStrategy();
+  const pools = tradePools(parsed.userRepeated, parsed.userMissing, parsed.friendRepeated, parsed.friendMissing, strategy);
+
+  resultTitle.textContent = resultTitleText(strategy);
+  resultDescription.textContent = resultDescriptionText(strategy, pools, parsed.trades.length);
+}
+
+function resultTitleText(strategy) {
+  return {
+    [TRADE_STRATEGIES.DIRECT]: "Proposta direta",
+    [TRADE_STRATEGIES.SAME_NUMBER]: "Proposta por mesmo número",
+    [TRADE_STRATEGIES.REPEATED]: "Proposta por repetidas",
+    [TRADE_STRATEGIES.BALANCED_REPEATED]: "Proposta por repetidas balanceadas",
+  }[strategy];
+}
+
+function resultDescriptionText(strategy, pools, tradeCount) {
+  const userCandidates = pools.userCanGive.length;
+  const friendCandidates = pools.friendCanGive.length;
+  const strategyReason = {
+    [TRADE_STRATEGIES.DIRECT]: "Entram figurinhas repetidas que faltam para a outra pessoa, pareadas com repetidas dela que faltam para você.",
+    [TRADE_STRATEGIES.SAME_NUMBER]: "Entram apenas pares da troca direta com a mesma numeração, mantendo FWC e CC dentro da própria família.",
+    [TRADE_STRATEGIES.REPEATED]: "Você entrega repetidas que faltam para a pessoa e recebe repetidas dela que não aparecem na sua lista de repetidas.",
+    [TRADE_STRATEGIES.BALANCED_REPEATED]: "Entram apenas sobras com quantidade 2 ou maior, trocadas por sobras que o outro lado não tem como repetida.",
+  }[strategy];
+
+  if (tradeCount > 0) {
+    const leftover = Math.max(userCandidates, friendCandidates) - tradeCount;
+    return `${strategyReason} Foram selecionadas ${tradeCount} troca(s) a partir de ${userCandidates} candidata(s) suas e ${friendCandidates} da outra pessoa; ${leftover} candidata(s) ficaram fora por falta de par compatível.`;
+  }
+
+  return `${strategyReason} ${noTradeReason(strategy, userCandidates, friendCandidates)}`;
+}
+
+function noTradeReason(strategy, userCandidates, friendCandidates) {
+  if (userCandidates === 0 && friendCandidates === 0) {
+    return "Nenhuma figurinha ficou elegível nos dois lados com os dados informados.";
+  }
+
+  if (userCandidates === 0) {
+    return "Nenhuma repetida sua ficou elegível para ser entregue nessa estratégia.";
+  }
+
+  if (friendCandidates === 0) {
+    return "Nenhuma repetida da outra pessoa ficou elegível para voltar nessa estratégia.";
+  }
+
+  if (strategy === TRADE_STRATEGIES.SAME_NUMBER) {
+    return "Há candidatas nos dois lados, mas nenhuma tem a mesma numeração com família especial compatível.";
+  }
+
+  return "Há candidatas nos dois lados, mas elas ficaram separadas pelas regras de FWC, CC, 1/13 e demais figurinhas.";
 }
 
 function renderImpactSummary(parsed) {
@@ -390,9 +512,14 @@ function renderImpactSummary(parsed) {
     return;
   }
 
-  const userMissingAfter = Math.max(0, parsed.userMissing.size - tradeCount);
+  const strategy = selectedStrategy();
+  const userMissingAfter = strategyUsesUserMissing(strategy)
+    ? Math.max(0, parsed.userMissing.size - tradeCount)
+    : parsed.userMissing.size;
   const userRepeatedAfter = Math.max(0, totalQuantity(parsed.userRepeated) - tradeCount);
-  const friendMissingAfter = Math.max(0, parsed.friendMissing.size - tradeCount);
+  const friendMissingAfter = strategyUsesFriendMissing(strategy)
+    ? Math.max(0, parsed.friendMissing.size - tradeCount)
+    : parsed.friendMissing.size;
   const friendRepeatedAfter = Math.max(0, totalQuantity(parsed.friendRepeated) - tradeCount);
 
   impactSummary.hidden = false;
@@ -400,6 +527,14 @@ function renderImpactSummary(parsed) {
     `Status após a troca: Você: ${userMissingAfter} faltando, ${userRepeatedAfter} repetidas`,
     `Pessoa: ${friendMissingAfter} faltando, ${friendRepeatedAfter} repetidas`,
   ].join(" | ");
+}
+
+function strategyUsesUserMissing(strategy) {
+  return strategy === TRADE_STRATEGIES.DIRECT || strategy === TRADE_STRATEGIES.SAME_NUMBER;
+}
+
+function strategyUsesFriendMissing(strategy) {
+  return strategy !== TRADE_STRATEGIES.BALANCED_REPEATED;
 }
 
 function renderTrades(trades) {
@@ -481,14 +616,14 @@ function buildShareUrl() {
 function buildSharePayload() {
   const parsed = getParsedInputs();
   const sections = [
-    sameNumberToggle.checked ? "1" : "0",
+    selectedStrategy(),
     encodeCompactSection(parsed.userMissing),
     encodeCompactSection(parsed.userRepeated),
     encodeCompactSection(parsed.friendMissing),
     encodeCompactSection(parsed.friendRepeated),
   ];
 
-  if (sections[0] === "0" && sections.slice(1).every((section) => section === "")) {
+  if (sections[0] === TRADE_STRATEGIES.DIRECT && sections.slice(1).every((section) => section === "")) {
     return "";
   }
 
@@ -508,7 +643,7 @@ function encodeCompactSection(items) {
     }
 
     const numbers = stickers
-      .map(({ number }) => numberToShareChar(number))
+      .map(({ number, quantity }) => stickerToShareToken(number, quantity))
       .join("");
     groups.push(`${prefixIndex.toString(36)}${SHARE_GROUP_VALUE_SEPARATOR}${numbers}`);
   });
@@ -540,18 +675,49 @@ function decodeCompactSection(section = "") {
     const prefixIndex = Number.parseInt(prefixToken, 36);
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
-    [...value]
-      .map(shareCharToNumber)
-      .filter((number) => number !== null)
-      .forEach((number) => addItem(items, `${prefix}${number}`, 1));
+    shareTokens(value).forEach(({ number, quantity }) => {
+      addItem(items, `${prefix}${number}`, quantity);
+    });
   });
 
   return items;
 }
 
+function stickerToShareToken(number, quantity) {
+  const numberToken = numberToShareChar(number);
+  const quantityToken = quantityToShareChar(quantity);
+  return `${quantityToken}${numberToken}`;
+}
+
 function numberToShareChar(number) {
   if (number === 0) return "0";
   return STICKER_NUMBER_CHARS[number - 1] || "";
+}
+
+function quantityToShareChar(quantity) {
+  if (!Number.isFinite(quantity) || quantity <= 1) return "";
+  const cappedQuantity = Math.min(quantity, 35);
+  return SHARE_QUANTITY_CHARS[cappedQuantity - 2] || "";
+}
+
+function shareTokens(value) {
+  const tokens = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    let quantity = shareCharToQuantity(value[index]);
+    if (quantity > 1 && index + 1 < value.length) {
+      index += 1;
+    } else {
+      quantity = 1;
+    }
+
+    const number = shareCharToNumber(value[index]);
+    if (number !== null) {
+      tokens.push({ number, quantity });
+    }
+  }
+
+  return tokens;
 }
 
 function shareCharToNumber(char) {
@@ -560,15 +726,20 @@ function shareCharToNumber(char) {
   return index === -1 ? null : index + 1;
 }
 
+function shareCharToQuantity(char) {
+  const index = SHARE_QUANTITY_CHARS.indexOf(char);
+  return index === -1 ? 1 : index + 2;
+}
+
 function loadSharedComparison() {
   const encoded = new URLSearchParams(window.location.search).get(SHARE_PARAM);
   if (!encoded) return;
 
   try {
-    const [switches, userMissing, userRepeated, friendMissing, friendRepeated] = encoded.split(SHARE_SECTION_SEPARATOR);
+    const [strategy, userMissing, userRepeated, friendMissing, friendRepeated] = encoded.split(SHARE_SECTION_SEPARATOR);
 
     showNamesToggle.checked = false;
-    sameNumberToggle.checked = switches === "1";
+    setSelectedStrategy(strategy);
     fields.userMissing.value = formatSelectionList(decodeCompactSection(userMissing), "missing");
     fields.userRepeated.value = formatSelectionList(decodeCompactSection(userRepeated), "repeated");
     fields.friendMissing.value = formatSelectionList(decodeCompactSection(friendMissing), "missing");
@@ -590,10 +761,17 @@ function scheduleUrlSync() {
 }
 
 function handleFormChanged() {
-  scheduleUrlSync();
-  if (hasCompared) {
-    clearComparison();
+  if (hasFormData()) {
+    compare();
+    return;
   }
+
+  clearComparison();
+  scheduleUrlSync();
+}
+
+function hasFormData() {
+  return Object.values(fields).some((field) => field.value.trim() !== "");
 }
 
 function whatsappKindLabel(kind) {
@@ -602,11 +780,12 @@ function whatsappKindLabel(kind) {
 }
 
 function whatsappStrategyText() {
-  if (sameNumberToggle.checked) {
-    return "Nesta proposta combinei somente figurinhas com mesmo número.";
-  }
-
-  return "Nesta proposta estou considerando a troca de FWC com FWC, CC com CC e 1 e 13 somente entre elas.";
+  return {
+    [TRADE_STRATEGIES.DIRECT]: "Nesta proposta estou considerando a troca direta: FWC com FWC, CC com CC e 1 e 13 somente entre elas.",
+    [TRADE_STRATEGIES.SAME_NUMBER]: "Nesta proposta combinei somente figurinhas com mesmo número.",
+    [TRADE_STRATEGIES.REPEATED]: "Nesta proposta estou considerando troca de repetidas: eu entrego figurinhas que faltam para a outra pessoa e recebo repetidas que não estão na minha lista de repetidas.",
+    [TRADE_STRATEGIES.BALANCED_REPEATED]: "Nesta proposta estou considerando troca de repetidas balanceadas: cada pessoa entrega uma sobra que a outra não tem como repetida.",
+  }[selectedStrategy()];
 }
 
 async function copyWhatsAppText() {
@@ -642,7 +821,7 @@ function openUserTable() {
   syncUrlNow();
   const parsed = getParsedInputs();
   const payload = [
-    "0",
+    TRADE_STRATEGIES.DIRECT,
     encodeCompactSection(parsed.userMissing),
     encodeCompactSection(parsed.userRepeated),
     "",
@@ -650,7 +829,7 @@ function openUserTable() {
   ].join(SHARE_SECTION_SEPARATOR);
   const url = new URL("tabela.html", window.location.href);
 
-  if (payload !== "0~~~~") {
+  if (payload !== `${TRADE_STRATEGIES.DIRECT}~~~~`) {
     url.searchParams.set(SHARE_PARAM, payload);
   }
 
@@ -708,11 +887,57 @@ function clearComparison() {
   currentTrades = [];
   hasCompared = false;
   setActionButtonsVisible(false);
-  renderEmptyResults("Informe os quatro campos e clique em comparar.");
+  renderStrategyIntro();
+  renderEmptyResults(emptyStateMessage());
   parseSummary.textContent = "Aguardando dados.";
   impactSummary.hidden = true;
   impactSummary.textContent = "";
   userGivesCount.textContent = "0";
+}
+
+function emptyStateMessage() {
+  return "Informe os dados e escolha uma estratégia de troca.";
+}
+
+function renderStrategyIntro() {
+  const emptyPools = { userCanGive: [], friendCanGive: [] };
+  const strategy = selectedStrategy();
+  resultTitle.textContent = resultTitleText(strategy);
+  resultDescription.textContent = resultDescriptionText(strategy, emptyPools, 0);
+}
+
+function selectedStrategy() {
+  return strategyInputs.find((input) => input.checked)?.value || TRADE_STRATEGIES.DIRECT;
+}
+
+function setSelectedStrategy(strategy = TRADE_STRATEGIES.DIRECT) {
+  const normalizedStrategy = TRADE_STRATEGY_LABELS[strategy] ? strategy : TRADE_STRATEGIES.DIRECT;
+  strategyInputs.forEach((input) => {
+    input.checked = input.value === normalizedStrategy;
+  });
+}
+
+function openStrategyHelp() {
+  openHelpDialog();
+  window.setTimeout(() => {
+    strategyHelp.scrollIntoView({ block: "start", behavior: "smooth" });
+    strategyHelp.focus({ preventScroll: true });
+    strategyHelp.classList.add("help-section-highlight");
+    window.setTimeout(() => {
+      strategyHelp.classList.remove("help-section-highlight");
+    }, FEEDBACK_TIMEOUT_MS);
+  }, 80);
+}
+
+function openHelpDialog() {
+  if (typeof helpDialog.showModal === "function") {
+    helpDialog.showModal();
+    document.body.classList.add("dialog-open");
+    return;
+  }
+
+  helpDialog.setAttribute("open", "");
+  document.body.classList.add("dialog-open");
 }
 
 function renderEmptyResults(message) {
@@ -721,7 +946,6 @@ function renderEmptyResults(message) {
   tableWrap.hidden = true;
 }
 
-compareButton.addEventListener("click", compare);
 clearButton.addEventListener("click", clearComparison);
 tableButton.addEventListener("click", openUserTable);
 swapCollectorsButton.addEventListener("click", swapCollectors);
@@ -739,22 +963,20 @@ showNamesToggle.addEventListener("change", () => {
   if (!hasCompared) return;
   renderTrades(currentTrades);
 });
-sameNumberToggle.addEventListener("change", () => {
-  if (hasCompared) {
-    compare();
-  } else {
-    scheduleUrlSync();
-  }
+strategyInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    if (hasFormData()) {
+      compare();
+    } else {
+      scheduleUrlSync();
+      renderStrategyIntro();
+      renderEmptyResults(emptyStateMessage());
+    }
+  });
 });
+strategyHelpButton.addEventListener("click", openStrategyHelp);
 helpButton.addEventListener("click", () => {
-  if (typeof helpDialog.showModal === "function") {
-    helpDialog.showModal();
-    document.body.classList.add("dialog-open");
-    return;
-  }
-
-  helpDialog.setAttribute("open", "");
-  document.body.classList.add("dialog-open");
+  openHelpDialog();
 });
 
 closeHelpButton.addEventListener("click", () => {
@@ -771,4 +993,6 @@ helpDialog.addEventListener("click", (event) => {
   }
 });
 
+renderStrategyIntro();
+renderEmptyResults(emptyStateMessage());
 loadSharedComparison();

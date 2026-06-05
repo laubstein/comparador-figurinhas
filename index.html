@@ -50,6 +50,7 @@
               <span aria-hidden="true">↔</span>
               <span>Inverter ordem</span>
             </button>
+            <button id="helpButton" class="hero-action hero-help-action" type="button" aria-haspopup="dialog">Ajuda</button>
           </div>
         </div>
         <div class="scoreboard" aria-label="Resumo da comparação">
@@ -67,6 +68,7 @@
               <h2>Suas figurinhas</h2>
             </div>
             <div class="format-actions" aria-label="Converter suas figurinhas">
+              <button id="tableButton" class="mini-button mini-button-gold" type="button">Gerar tabela</button>
               <button class="mini-button" type="button" data-format-target="user" data-format="selection">Para formato seleção</button>
               <button class="mini-button" type="button" data-format-target="user" data-format="app">Para formato app</button>
             </div>
@@ -98,15 +100,33 @@
       </section>
 
       <section class="toolbar" aria-label="Ações">
-        <button id="compareButton" type="button">Comparar</button>
-        <button id="tableButton" class="gold-button" type="button">Gerar Minha Tabela</button>
-        <label class="switch-option" title="Quando ativado, só faz a troca por figurinhas com mesma numeração. Ex: BRA1 -> MEX1">
-          <input id="sameNumberToggle" type="checkbox">
-          <span class="switch-track" aria-hidden="true"></span>
-          <span>Mesmo número</span>
-        </label>
+        <div class="strategy-controls" aria-labelledby="strategyLabel">
+          <div class="strategy-heading">
+            <span id="strategyLabel">Escolha abaixo uma estratégia de troca</span>
+            <button id="strategyHelpButton" class="help-icon-button" type="button" title="Entenda as estratégias de troca" aria-label="Ajuda sobre estratégias de troca">
+              ?
+            </button>
+          </div>
+          <div class="strategy-options" role="radiogroup" aria-labelledby="strategyLabel">
+            <label>
+              <input type="radio" name="tradeStrategy" value="0" checked>
+              <span>Direta</span>
+            </label>
+            <label>
+              <input type="radio" name="tradeStrategy" value="1">
+              <span>Mesmo número</span>
+            </label>
+            <label>
+              <input type="radio" name="tradeStrategy" value="2">
+              <span>Repetidas</span>
+            </label>
+            <label>
+              <input type="radio" name="tradeStrategy" value="3">
+              <span>Repetidas balanceadas</span>
+            </label>
+          </div>
+        </div>
         <button id="clearButton" class="secondary" type="button">Limpar</button>
-        <button id="helpButton" class="secondary" type="button" aria-haspopup="dialog">Ajuda</button>
         <div class="summary-stack">
           <p id="parseSummary" class="parse-summary">Aguardando dados.</p>
           <p id="impactSummary" class="impact-summary" hidden></p>
@@ -117,7 +137,10 @@
         <div class="results-header">
           <div>
             <p class="eyebrow">Cruzamento para troca</p>
-            <h2>Proposta equilibrada</h2>
+            <h2 id="resultTitle">Proposta direta</h2>
+            <p id="resultDescription" class="results-description">
+              Entram figurinhas repetidas que faltam para a outra pessoa, pareadas com repetidas dela que faltam para você.
+            </p>
           </div>
           <div class="results-actions">
             <button id="copyWhatsAppButton" class="whatsapp-button" type="button" title="Copiar proposta abaixo para ser enviada por WhatsApp" hidden>
@@ -139,7 +162,7 @@
         </div>
 
         <div id="emptyState" class="empty-state">
-          Informe os quatro campos e clique em comparar.
+          Informe os dados e escolha uma estratégia de troca.
         </div>
 
         <div class="table-wrap" hidden>
@@ -171,7 +194,7 @@
         <div class="help-content">
           <p>
             Preencha os quatro campos: suas faltantes, suas repetidas, faltantes da outra pessoa e repetidas da outra pessoa.
-            Depois clique em comparar para montar uma proposta de troca.
+            A proposta é atualizada automaticamente conforme os dados e a estratégia escolhida.
           </p>
           <p>
             A tabela mostra apenas trocas em que uma figurinha sua falta para a outra pessoa e uma figurinha dela
@@ -181,6 +204,28 @@
             Regras especiais: FWC só troca com FWC; CC só troca com CC; figurinhas número 1 e 13 só trocam entre si;
             as demais trocam apenas com outras figurinhas comuns.
           </p>
+
+          <section id="strategyHelp" class="help-section" tabindex="-1">
+            <h3>Estratégias de troca</h3>
+            <p>
+              <strong>Direta:</strong> monta a troca clássica. Você entrega uma repetida que falta para a outra pessoa,
+              e recebe uma repetida dela que falta para você.
+            </p>
+            <p>
+              <strong>Mesmo número:</strong> usa a mesma lógica da troca direta, mas só aceita pares com a mesma numeração,
+              como BRA1 por MEX1.
+            </p>
+            <p>
+              <strong>Repetidas:</strong> você entrega uma repetida que falta para a outra pessoa, e ela devolve uma
+              repetida que não aparece na sua lista de repetidas. É uma sugestão útil quando sua lista de faltantes não
+              está completa.
+            </p>
+            <p>
+              <strong>Repetidas balanceadas:</strong> considera apenas figurinhas com sobra de repetidas. Um lado entrega
+              uma sobra que o outro não tem como repetida, e recebe uma sobra que também não tem como repetida. Cada código
+              aparece no máximo uma vez na proposta.
+            </p>
+          </section>
 
           <h3>Formato do app Álbum de Figurinhas Copa 2026</h3>
           <pre><code>🇰🇷 *KOR* · pg. 12-13
@@ -202,7 +247,8 @@ CC 🥤: 5, 8, 10, 11</code></pre>
 
           <p>
             Em repetidas, quando houver quantidade como <strong>KOR1 (x2)</strong>, ela é usada apenas para
-            contar repetidas. Na proposta final, a mesma figurinha não será oferecida duas vezes para a mesma pessoa.
+            contar repetidas. A quantidade máxima considerada por figurinha é de <strong>35 unidades</strong>. Na proposta
+            final, a mesma figurinha não será oferecida duas vezes para a mesma pessoa.
           </p>
           <p>
             A opção de exibir nomes usa um de/para estático incluído no JavaScript. A coleção oficial foi verificada
