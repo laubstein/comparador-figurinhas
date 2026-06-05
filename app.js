@@ -18,6 +18,7 @@ const userGivesCount = document.querySelector("#userGivesCount");
 const tradeRows = document.querySelector("#tradeRows");
 const emptyState = document.querySelector("#emptyState");
 const tableWrap = document.querySelector(".table-wrap");
+const swapCollectorsButton = document.querySelector("#swapCollectorsButton");
 const copyWhatsAppButton = document.querySelector("#copyWhatsAppButton");
 const copyWhatsAppLabel = copyWhatsAppButton.querySelector("span");
 const shareComparisonButton = document.querySelector("#shareComparisonButton");
@@ -1167,6 +1168,17 @@ function convertPanelFormat(target, format) {
   handleFormChanged();
 }
 
+function swapCollectors() {
+  const userMissing = fields.userMissing.value;
+  const userRepeated = fields.userRepeated.value;
+
+  fields.userMissing.value = fields.friendMissing.value;
+  fields.userRepeated.value = fields.friendRepeated.value;
+  fields.friendMissing.value = userMissing;
+  fields.friendRepeated.value = userRepeated;
+  handleFormChanged();
+}
+
 function formatList(items, mode, format) {
   return format === "app"
     ? formatAppList(items, mode)
@@ -1688,6 +1700,7 @@ function renderEmptyResults(message) {
 
 compareButton.addEventListener("click", compare);
 clearButton.addEventListener("click", clearComparison);
+swapCollectorsButton.addEventListener("click", swapCollectors);
 copyWhatsAppButton.addEventListener("click", copyWhatsAppText);
 shareComparisonButton.addEventListener("click", shareComparison);
 document.querySelectorAll("[data-format-target][data-format]").forEach((button) => {
