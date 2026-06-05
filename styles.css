@@ -165,6 +165,9 @@ h2 {
 
 .hero-action {
   min-height: auto;
+  color: white;
+  background: var(--green);
+  border-color: var(--green);
 }
 
 .toggle-option input {
