@@ -14,6 +14,8 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 fs.writeFileSync(path.join(dist, "styles.min.css"), minifyCss(css));
 fs.writeFileSync(path.join(dist, "app.min.js"), minifyJs(js));
 fs.writeFileSync(path.join(dist, "LICENSE"), fs.readFileSync(path.join(root, "LICENSE"), "utf8"));
+fs.mkdirSync(path.join(dist, "assets"), { recursive: true });
+fs.copyFileSync(path.join(root, "assets", "favicon.svg"), path.join(dist, "assets", "favicon.svg"));
 
 const distHtml = minifyHtml(
   html

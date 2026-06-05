@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Troca de Figurinhas da Copa</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -16,7 +17,8 @@
       </div>
 
       <section class="hero">
-        <div>
+        <img class="hero-logo" src="assets/favicon.svg" alt="" aria-hidden="true">
+        <div class="hero-copy">
           <p class="eyebrow">Copa do Mundo 2026</p>
           <h1>Comparador de trocas</h1>
           <p class="subtitle">
@@ -74,6 +76,11 @@
 
       <section class="toolbar" aria-label="Ações">
         <button id="compareButton" type="button">Comparar</button>
+        <label class="switch-option" title="Quando ativado, só faz a troca por figurinhas com mesma numeração. Ex: BRA1 -> MEX1">
+          <input id="sameNumberToggle" type="checkbox">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span>Mesmo número</span>
+        </label>
         <button id="clearButton" class="secondary" type="button">Limpar</button>
         <button id="helpButton" class="secondary" type="button" aria-haspopup="dialog">Ajuda</button>
         <div class="summary-stack">
@@ -88,10 +95,21 @@
             <p class="eyebrow">Cruzamento para troca</p>
             <h2>Proposta equilibrada</h2>
           </div>
-          <div class="legend">
-            <span><i class="dot dot-fwc"></i> FWC</span>
-            <span><i class="dot dot-special"></i> 1 ou 13</span>
-            <span><i class="dot dot-standard"></i> Demais</span>
+          <div class="results-actions">
+            <button id="copyWhatsAppButton" class="whatsapp-button" type="button" title="Copiar proposta abaixo para ser enviada por WhatsApp" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2a9.8 9.8 0 0 0-8.4 14.9L2.5 22l5.2-1.1A9.9 9.9 0 1 0 12 2Zm0 2a7.9 7.9 0 0 1 6.7 12.1 7.8 7.8 0 0 1-9.7 2.8l-.3-.2-3.4.7.7-3.3-.2-.3A7.8 7.8 0 0 1 12 4Zm-3.1 4.2c-.2 0-.5.1-.7.4-.2.3-.8.8-.8 2s.8 2.3.9 2.5c.1.2 1.6 2.7 4 3.7 2 .9 2.4.7 2.8.7.4 0 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.2-.5-.4l-1.6-.8c-.2-.1-.4-.1-.6.2l-.7.9c-.1.2-.3.2-.5.1-.3-.1-1.1-.4-2-1.2-.7-.7-1.2-1.5-1.4-1.8-.1-.2 0-.4.1-.5l.4-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.7-1.7c-.2-.4-.4-.4-.7-.4Z"/>
+              </svg>
+              <span>Copiar para WhatsApp</span>
+            </button>
+            <button id="shareComparisonButton" class="secondary" type="button" title="Copiar link com os dados desta comparação" hidden>
+              Compartilhar Comparação
+            </button>
+            <div class="legend">
+              <span><i class="dot dot-fwc"></i> FWC</span>
+              <span><i class="dot dot-special"></i> 1 ou 13</span>
+              <span><i class="dot dot-standard"></i> Demais</span>
+            </div>
           </div>
         </div>
 
@@ -146,7 +164,7 @@ KOR1 (x1), KOR7 (x1), KOR8 (x1)
 *Copa 2026* · pg. 1
 FWC1, FWC3</code></pre>
 
-          <h3>Formato por selecao</h3>
+          <h3>Formato por seleção</h3>
           <pre><code>🇧🇷 BRA - 6, 10, 14
 🇰🇷 KOR - 1, 7, 8
 🏳️ FWC - 1, 4, 5</code></pre>

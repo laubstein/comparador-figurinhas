@@ -99,6 +99,17 @@ body::before {
   overflow: hidden;
 }
 
+.hero-logo {
+  width: clamp(76px, 10vw, 118px);
+  height: auto;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 12px 18px rgba(17, 38, 66, 0.2));
+}
+
+.hero-copy {
+  flex: 1 1 auto;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--blue);
@@ -130,19 +141,24 @@ h2 {
   font-size: 1.05rem;
 }
 
-.toggle-option {
+.toggle-option,
+.switch-option {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-  padding: 10px 12px;
+  gap: 8px;
   color: #24324a;
-  font-size: 0.92rem;
   font-weight: 850;
   background: #edf3fa;
   border: 1px solid #cbd7e8;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.toggle-option {
+  gap: 10px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
 }
 
 .toggle-option input {
@@ -293,6 +309,48 @@ button.secondary {
   background: #e8eef6;
 }
 
+.switch-option {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 0.88rem;
+}
+
+.switch-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  background: #b8c3d3;
+  border-radius: 999px;
+  transition: background 0.16s ease;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(22, 32, 51, 0.25);
+  transition: transform 0.16s ease;
+}
+
+.switch-option input:checked + .switch-track {
+  background: var(--green);
+}
+
+.switch-option input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
 .mini-button {
   min-height: 32px;
   padding: 0 10px;
@@ -300,6 +358,21 @@ button.secondary {
   font-size: 0.78rem;
   background: #e8eef6;
   border: 1px solid #cbd7e8;
+}
+
+.whatsapp-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  background: #25d366;
+}
+
+.whatsapp-button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  flex: 0 0 auto;
 }
 
 .icon-button {
@@ -341,6 +414,12 @@ button.secondary {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.results-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
 }
 
 .legend {
@@ -470,6 +549,11 @@ tr:last-child td {
   background: var(--green);
 }
 
+.trade-kind.sameNumber {
+  color: white;
+  background: #5b3ea6;
+}
+
 .help-dialog {
   width: min(760px, calc(100% - 28px));
   max-height: min(760px, calc(100vh - 96px));
@@ -561,6 +645,14 @@ tr:last-child td {
     display: grid;
   }
 
+  .results-actions {
+    justify-items: start;
+  }
+
+  .hero-logo {
+    width: 82px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -589,8 +681,13 @@ tr:last-child td {
   }
 
   .toolbar button:first-child,
+  .switch-option,
   .summary-stack {
     grid-column: 1 / -1;
+  }
+
+  .switch-option {
+    justify-content: center;
   }
 
   .privacy-footer {

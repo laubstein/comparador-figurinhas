@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Troca de figurinhas">
+  <rect width="64" height="64" rx="15" fill="#087a35"/>
+  <g transform="rotate(-8 27 33)">
+    <rect x="13" y="16" width="25" height="34" rx="5" fill="#f8fbff"/>
+    <rect x="17" y="21" width="17" height="12" rx="2" fill="#1148a8"/>
+    <path d="M18 39h14" stroke="#162033" stroke-width="3" stroke-linecap="round"/>
+    <path d="M18 44h10" stroke="#8aa2c6" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g transform="rotate(8 38 31)">
+    <rect x="26" y="12" width="25" height="34" rx="5" fill="#f7c948"/>
+    <rect x="30" y="17" width="17" height="12" rx="2" fill="#ffffff"/>
+    <path d="M31 35h14" stroke="#162033" stroke-width="3" stroke-linecap="round"/>
+    <path d="M31 40h10" stroke="#8a6b00" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <circle cx="32" cy="32" r="12" fill="#ffffff"/>
+  <path d="M26 30h14l-4-4" fill="none" stroke="#087a35" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 35H24l4 4" fill="none" stroke="#087a35" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
