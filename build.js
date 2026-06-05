@@ -20,7 +20,9 @@ fs.writeFileSync(path.join(dist, cssFile), minifiedCss);
 fs.writeFileSync(path.join(dist, jsFile), minifiedJs);
 fs.writeFileSync(path.join(dist, "LICENSE"), fs.readFileSync(path.join(root, "LICENSE"), "utf8"));
 fs.mkdirSync(path.join(dist, "assets"), { recursive: true });
-fs.copyFileSync(path.join(root, "assets", "favicon.svg"), path.join(dist, "assets", "favicon.svg"));
+for (const asset of ["favicon.svg", "og-image.png"]) {
+  fs.copyFileSync(path.join(root, "assets", asset), path.join(dist, "assets", asset));
+}
 
 const distHtml = minifyHtml(
   html
