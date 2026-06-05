@@ -22,8 +22,9 @@ const copyWhatsAppButton = document.querySelector("#copyWhatsAppButton");
 const copyWhatsAppLabel = copyWhatsAppButton.querySelector("span");
 const shareComparisonButton = document.querySelector("#shareComparisonButton");
 
-const formatSelectionLine = /(?:^|\s)([A-Z]{3})\s*-\s*(.*)$/;
+const formatSelectionLine = /(?:^|\s)([A-Z]{3})\s*(?:-|:)\s*(.*)$/;
 const codedSticker = /\b([A-Z]{3,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
+const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
 const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const extraSticker = /\b(REGU|BRON|PRAT|OURO)\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const TEAM_FLAGS = {
@@ -1099,9 +1100,9 @@ function parseList(rawText, mode) {
     const formatSelectionMatch = line.match(formatSelectionLine);
     if (formatSelectionMatch) {
       const prefix = normalizePrefix(formatSelectionMatch[1]);
-      const stickers = [...formatSelectionMatch[2].matchAll(/(\d+)(?:\s*\([xX]\s*([0-9]+)\))?/g)];
+      const stickers = [...formatSelectionMatch[2].matchAll(selectionSticker)];
       stickers.forEach((match) => {
-        const quantity = mode === "repeated" ? Number(match[2] || 1) : 1;
+        const quantity = mode === "repeated" ? Number(match[2] || match[3] || 1) : 1;
         addItem(items, `${prefix}${Number(match[1])}`, quantity);
       });
       return;
