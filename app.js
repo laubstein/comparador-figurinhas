@@ -1360,7 +1360,7 @@ function renderSummary(parsed) {
   userGivesCount.textContent = parsed.trades.length;
   parseSummary.textContent = [
     `Você: ${parsed.userMissing.size} faltando, ${totalQuantity(parsed.userRepeated)} repetidas`,
-    `Amigo: ${parsed.friendMissing.size} faltando, ${totalQuantity(parsed.friendRepeated)} repetidas`,
+    `Pessoa: ${parsed.friendMissing.size} faltando, ${totalQuantity(parsed.friendRepeated)} repetidas`,
   ].join(" | ");
 
   renderImpactSummary(parsed);
@@ -1383,7 +1383,7 @@ function renderImpactSummary(parsed) {
   impactSummary.hidden = false;
   impactSummary.innerHTML = [
     `Status após a troca: Você: ${userMissingAfter} faltando, ${userRepeatedAfter} repetidas`,
-    `Amigo: ${friendMissingAfter} faltando, ${friendRepeatedAfter} repetidas`,
+    `Pessoa: ${friendMissingAfter} faltando, ${friendRepeatedAfter} repetidas`,
   ].join(" | ");
 }
 
@@ -1438,7 +1438,7 @@ function buildWhatsAppText() {
     "",
     whatsappStrategyText(),
     "",
-    "Eu entrego -> Você entrega",
+    "Eu entrego -> Pessoa entrega",
   ];
 
   currentTrades.forEach((trade, index) => {
