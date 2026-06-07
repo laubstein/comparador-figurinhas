@@ -312,7 +312,8 @@ textarea:focus {
 }
 
 .toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 12px;
   margin-top: 18px;
@@ -349,11 +350,12 @@ button.secondary {
 .strategy-controls {
   display: grid;
   gap: 8px;
-  min-width: min(100%, 560px);
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 #clearButton {
-  align-self: end;
+  justify-self: start;
 }
 
 .strategy-heading {
@@ -367,7 +369,7 @@ button.secondary {
 
 .strategy-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 
@@ -621,6 +623,11 @@ tr:last-child td {
 .trade-kind.sameNumber {
   color: white;
   background: #5b3ea6;
+}
+
+.trade-kind.free {
+  color: white;
+  background: #596579;
 }
 
 .help-dialog {
@@ -1012,6 +1019,10 @@ tr:last-child td {
 
   .strategy-options label {
     flex: 1 1 150px;
+  }
+
+  .strategy-options {
+    flex-wrap: wrap;
   }
 
   .strategy-options span {
