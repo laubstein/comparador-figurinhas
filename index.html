@@ -170,7 +170,10 @@
         </div>
 
         <div id="emptyState" class="empty-state">
-          Informe os dados e escolha uma estratégia de troca.
+          <p id="emptyStateMessage">Informe os dados e escolha uma estratégia de troca.</p>
+          <button id="undoTradeButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>
+            Desfazer última troca
+          </button>
         </div>
 
         <div class="table-wrap" hidden>
@@ -184,6 +187,18 @@
               </tr>
             </thead>
             <tbody id="tradeRows"></tbody>
+            <tfoot id="tradeFooter" hidden>
+              <tr>
+                <td colspan="4">
+                  <button id="undoTradeFooterButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>
+                    Desfazer última troca
+                  </button>
+                  <button id="acceptTradeButton" type="button" title="Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas">
+                    Troca aceita
+                  </button>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </section>
@@ -213,15 +228,23 @@
             e as demais trocam apenas com outras figurinhas comuns. A estratégia Direta prioriza essas regras e depois
             combina livremente as candidatas restantes.
           </p>
+          <p>
+            Após concretizar uma proposta, use <strong>Troca aceita</strong> no rodapé da tabela. A aplicação descontará
+            as figurinhas entregues das listas de repetidas e atualizará as faltantes ou repetidas de quem recebeu.
+            É possível desfazer as cinco últimas trocas aceitas durante a sessão. A lista de possibilidades não possui
+            esses botões porque não representa uma troca completa.
+          </p>
 
           <section id="strategyHelp" class="help-section" tabindex="-1">
             <h3>Estratégias de troca</h3>
             <p>
-              <strong>FWC 1 13:</strong> mantém FWC, CC, figurinhas 1/13 e demais figurinhas em seus próprios grupos.
+              <strong>FWC 1 13:</strong> mantém FWC, CC, figurinhas 1/13 e demais figurinhas em seus próprios grupos,
+              distribuindo as figurinhas comuns entre países.
             </p>
             <p>
               <strong>Direta:</strong> prioriza os grupos de FWC, CC e 1/13, mas depois combina livremente as candidatas
-              restantes, inclusive entre grupos diferentes, para aproveitar mais possibilidades de troca.
+              restantes, inclusive entre grupos diferentes, para aproveitar mais possibilidades de troca. A seleção
+              também faz rodízio entre países, dando mais espaço aos que possuem maiores quantidades repetidas.
             </p>
             <p>
               <strong>Mesmo número:</strong> usa a mesma lógica da troca direta, mas só aceita pares com a mesma numeração,
@@ -230,7 +253,9 @@
             <p>
               <strong>Repetidas:</strong> você entrega uma repetida que falta para a outra pessoa, e ela devolve uma
               repetida que não aparece na sua lista de repetidas. É uma sugestão útil quando sua lista de faltantes não
-              está completa.
+              está completa. A proposta faz um rodízio entre países para evitar consumir muitas figurinhas de um mesmo
+              país de uma vez. Países com maiores quantidades da mesma figurinha repetida recebem proporcionalmente mais
+              espaço na proposta.
             </p>
             <p>
               <strong>Repetidas balanceadas:</strong> considera apenas figurinhas com sobra de repetidas. Um lado entrega
