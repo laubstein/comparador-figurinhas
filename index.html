@@ -55,8 +55,8 @@
         </div>
         <div class="scoreboard" aria-label="Resumo da comparação">
           <span id="userGivesCount">0</span>
-          <strong>trocas possíveis</strong>
-          <small>respeitando FWC, CC, 1 e 13</small>
+          <strong id="scoreboardLabel">trocas possíveis</strong>
+          <small id="scoreboardDetail">respeitando FWC, CC, 1 e 13</small>
         </div>
       </section>
 
@@ -68,9 +68,9 @@
               <h2>Suas figurinhas</h2>
             </div>
             <div class="format-actions" aria-label="Converter suas figurinhas">
-              <button id="tableButton" class="mini-button mini-button-gold" type="button">Gerar tabela</button>
-              <button class="mini-button" type="button" data-format-target="user" data-format="selection">Para formato seleção</button>
-              <button class="mini-button" type="button" data-format-target="user" data-format="app">Para formato app</button>
+              <button id="tableButton" class="mini-button mini-button-blue" type="button">Gerar tabela</button>
+              <button class="mini-button" type="button" data-format-target="user" data-format="selection">Formatar dados</button>
+              <button class="mini-button" type="button" data-format-target="user" data-format="app">Estilo app</button>
             </div>
           </div>
           <label for="userMissing">Faltando</label>
@@ -87,8 +87,8 @@
               <h2>Figurinhas da outra pessoa</h2>
             </div>
             <div class="format-actions" aria-label="Converter figurinhas da outra pessoa">
-              <button class="mini-button" type="button" data-format-target="friend" data-format="selection">Para formato seleção</button>
-              <button class="mini-button" type="button" data-format-target="friend" data-format="app">Para formato app</button>
+              <button class="mini-button" type="button" data-format-target="friend" data-format="selection">Formatar dados</button>
+              <button class="mini-button" type="button" data-format-target="friend" data-format="app">Estilo app</button>
             </div>
           </div>
           <label for="friendMissing">Faltando</label>
@@ -123,6 +123,10 @@
             <label>
               <input type="radio" name="tradeStrategy" value="3">
               <span>Repetidas balanceadas</span>
+            </label>
+            <label>
+              <input type="radio" name="tradeStrategy" value="4">
+              <span>Possibilidades</span>
             </label>
           </div>
         </div>
@@ -168,7 +172,7 @@
         <div class="table-wrap" hidden>
           <table>
             <thead>
-              <tr>
+              <tr id="tradeHeadRow">
                 <th>#</th>
                 <th>Você entrega</th>
                 <th>Pessoa entrega</th>
@@ -193,8 +197,8 @@
 
         <div class="help-content">
           <p>
-            Preencha os quatro campos: suas faltantes, suas repetidas, faltantes da outra pessoa e repetidas da outra pessoa.
-            A proposta é atualizada automaticamente conforme os dados e a estratégia escolhida.
+            Preencha as listas que você possui e escolha uma estratégia. A proposta ou lista de possibilidades é atualizada
+            automaticamente conforme os dados informados.
           </p>
           <p>
             A tabela mostra apenas trocas em que uma figurinha sua falta para a outra pessoa e uma figurinha dela
@@ -224,6 +228,11 @@
               <strong>Repetidas balanceadas:</strong> considera apenas figurinhas com sobra de repetidas. Um lado entrega
               uma sobra que o outro não tem como repetida, e recebe uma sobra que também não tem como repetida. Cada código
               aparece no máximo uma vez na proposta.
+            </p>
+            <p>
+              <strong>Possibilidades:</strong> considera somente suas faltantes e as repetidas da outra pessoa. Exibe tudo
+              que ela possui repetido e está faltando para você, sem exigir sua lista de repetidas e sem montar uma troca
+              com contrapartida.
             </p>
           </section>
 

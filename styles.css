@@ -346,16 +346,14 @@ button.secondary {
   background: var(--gold);
 }
 
-.mini-button-gold {
-  color: #4f3300;
-  background: var(--gold);
-  border-color: #e7b82f;
-}
-
 .strategy-controls {
   display: grid;
   gap: 8px;
   min-width: min(100%, 560px);
+}
+
+#clearButton {
+  align-self: end;
 }
 
 .strategy-heading {
@@ -413,6 +411,12 @@ button.secondary {
   font-size: 0.78rem;
   background: #e8eef6;
   border: 1px solid #cbd7e8;
+}
+
+.mini-button.mini-button-blue {
+  color: white;
+  background: var(--blue);
+  border-color: var(--blue);
 }
 
 .whatsapp-button {
