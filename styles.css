@@ -579,9 +579,38 @@ tr:last-child td {
 
 tfoot td {
   padding: 12px 14px;
-  text-align: right;
   background: #f4f8f6;
   border-top: 2px solid var(--line);
+}
+
+.trade-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.trade-footer-actions,
+.ignored-stickers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ignored-stickers {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.ignored-sticker {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 2px 9px;
+  color: #344054;
+  font-size: 0.78rem;
+  background: #edf3fa;
+  border: 1px solid #cbd7e8;
 }
 
 #acceptTradeButton {
@@ -596,9 +625,11 @@ tfoot td {
 }
 
 .sticker {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   min-width: 68px;
   min-height: 30px;
   padding: 3px 10px;
@@ -608,11 +639,36 @@ tfoot td {
   border-radius: 6px;
 }
 
+.sticker:has(.remove-trade-sticker) {
+  padding-right: 29px;
+}
+
+.sticker-flag {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .sticker-cell {
   display: grid;
   gap: 4px;
   align-items: center;
   justify-items: start;
+}
+
+.remove-trade-sticker {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  color: #6b2630;
+  font-size: 0.7rem;
+  line-height: 1;
+  background: #fce8eb;
+  border: 1px solid #e7b9c0;
+  border-radius: 50%;
 }
 
 .sticker-name {
@@ -638,9 +694,15 @@ tfoot td {
   background: var(--blue);
 }
 
-.trade-kind.special {
+.trade-kind.numberOne,
+.trade-kind.numberThirteen {
   color: #4f3300;
   background: var(--gold);
+}
+
+.trade-kind.selectionShiny {
+  color: white;
+  background: #b26a00;
 }
 
 .trade-kind.standard {

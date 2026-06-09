@@ -25,6 +25,7 @@ const tradeHeadRow = document.querySelector("#tradeHeadRow");
 const tradeRows = document.querySelector("#tradeRows");
 const tradeFooter = document.querySelector("#tradeFooter");
 const acceptTradeButton = document.querySelector("#acceptTradeButton");
+const ignoredStickers = document.querySelector("#ignoredStickers");
 const emptyState = document.querySelector("#emptyState");
 const emptyStateMessageElement = document.querySelector("#emptyStateMessage");
 const undoTradeButton = document.querySelector("#undoTradeButton");
@@ -35,6 +36,7 @@ const copyWhatsAppButton = document.querySelector("#copyWhatsAppButton");
 const copyWhatsAppLabel = copyWhatsAppButton.querySelector("span");
 const shareComparisonButton = document.querySelector("#shareComparisonButton");
 const tradeLegend = document.querySelector(".legend");
+const tradeStickerTooltip = document.querySelector("#tradeStickerTooltip");
 
 const selectionLineSimple = /(?:^|\s)([A-Z]{2,4})\s*-\s*((?:\d|00).*)$/;
 const selectionLineDecorated = /(?:^|\s)([A-Z]{2,4})\b[^:,-]*:\s*((?:\d|00).*)$/;
@@ -42,11 +44,13 @@ const selectionLineSpaced = /(?:^|\s)([A-Z]{2,4})\s+((?:\d|00).*)$/;
 const codedSticker = /\b([A-Z]{2,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
 const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
-const extraSticker = /\b(REGU|BRON|PRAT|OURO)\b(?:\s*\(x\s*([0-9]+)\))?/gi;
-const { TEAM_FLAGS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
-const CODE_PREFIXES = Object.keys(TEAM_FLAGS);
+const { TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
+const TEAM_BY_CODE = Object.fromEntries(TEAMS.map((team) => [team.code, team]));
+const CODE_PREFIXES = TEAMS.map(({ code }) => code);
 const CODE_PREFIX_INDEX = Object.fromEntries(CODE_PREFIXES.map((prefix, index) => [prefix, index]));
+const IGNORED_CODES = new Set(["BRON", "OURO", "PRAT", "REGU"]);
 let currentTrades = [];
+const ignoredTradeStickers = new Map();
 let hasCompared = false;
 const acceptedTradeHistory = [];
 const MAX_UNDO_TRADES = 5;
@@ -54,7 +58,9 @@ const MAX_UNDO_TRADES = 5;
 const TRADE_KINDS = {
   FWC: "fwc",
   CC: "cc",
-  SPECIAL: "special",
+  NUMBER_ONE: "numberOne",
+  NUMBER_THIRTEEN: "numberThirteen",
+  SELECTION_SHINY: "selectionShiny",
   STANDARD: "standard",
   SAME_NUMBER: "sameNumber",
   FREE: "free",
@@ -63,7 +69,9 @@ const TRADE_KINDS = {
 const TRADE_KIND_LABELS = {
   [TRADE_KINDS.FWC]: "FWC",
   [TRADE_KINDS.CC]: "CC",
-  [TRADE_KINDS.SPECIAL]: "1 ou 13",
+  [TRADE_KINDS.NUMBER_ONE]: "Número 1",
+  [TRADE_KINDS.NUMBER_THIRTEEN]: "Número 13",
+  [TRADE_KINDS.SELECTION_SHINY]: "FWC ou número 1",
   [TRADE_KINDS.STANDARD]: "Demais",
   [TRADE_KINDS.SAME_NUMBER]: "Mesmo número",
   [TRADE_KINDS.FREE]: "Livre",
@@ -72,7 +80,10 @@ const SHARE_PARAM = "c";
 const SHARE_SECTION_SEPARATOR = "~";
 const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
+const SHARE_BITMAP_GROUP_SEPARATOR = ".";
 const SHARE_LOOSE_GROUP = "x";
+const SHARE_V2_PREFIX = "2:";
+const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
 const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COPY_WHATSAPP_LABEL = "Copiar para WhatsApp";
@@ -81,21 +92,23 @@ const FEEDBACK_TIMEOUT_MS = 1800;
 let urlSyncTimer = null;
 
 const TRADE_STRATEGIES = {
-  STRICT: "0",
+  BRIGHT: "0",
   SAME_NUMBER: "1",
   REPEATED: "2",
   BALANCED_REPEATED: "3",
   POSSIBILITIES: "4",
   DIRECT: "5",
+  BRIGHT_SELECTIONS: "6",
 };
 
 const TRADE_STRATEGY_LABELS = {
-  [TRADE_STRATEGIES.STRICT]: "FWC 1 13",
+  [TRADE_STRATEGIES.BRIGHT]: "Brilhantes",
   [TRADE_STRATEGIES.SAME_NUMBER]: "Mesmo número",
   [TRADE_STRATEGIES.REPEATED]: "Repetidas",
   [TRADE_STRATEGIES.BALANCED_REPEATED]: "Repetidas balanceadas",
   [TRADE_STRATEGIES.POSSIBILITIES]: "Possibilidades",
   [TRADE_STRATEGIES.DIRECT]: "Direta",
+  [TRADE_STRATEGIES.BRIGHT_SELECTIONS]: "Brilhantes Seleções",
 };
 
 function parseList(rawText, mode) {
@@ -116,6 +129,7 @@ function parseList(rawText, mode) {
 
     for (const match of line.matchAll(codedSticker)) {
       const prefix = normalizePrefix(match[1]);
+      if (!TEAM_BY_CODE[prefix]) continue;
       const code = stickerCode(prefix, Number(match[2]));
       const quantity = mode === "repeated" ? Number(match[3] || 1) : 1;
       addItem(items, code, quantity);
@@ -126,10 +140,6 @@ function parseList(rawText, mode) {
       addItem(items, "FWC0", quantity);
     }
 
-    for (const match of line.matchAll(extraSticker)) {
-      const quantity = mode === "repeated" ? Number(match[2] || 1) : 1;
-      addItem(items, match[1], quantity);
-    }
   });
 
   return items;
@@ -138,6 +148,8 @@ function parseList(rawText, mode) {
 function parseSelectionLine(line) {
   const match = line.match(selectionLineSimple) || line.match(selectionLineDecorated) || line.match(selectionLineSpaced);
   if (!match) return null;
+  const prefix = normalizePrefix(match[1]);
+  if (!TEAM_BY_CODE[prefix]) return null;
 
   const stickers = [...match[2].matchAll(selectionSticker)].map((stickerMatch) => ({
     number: Number(stickerMatch[1]),
@@ -146,13 +158,13 @@ function parseSelectionLine(line) {
 
   if (stickers.length === 0) return null;
   return {
-    prefix: normalizePrefix(match[1]),
+    prefix,
     stickers,
   };
 }
 
 function addItem(items, code, quantity) {
-  if (!Number.isFinite(quantity) || quantity < 1) return;
+  if (IGNORED_CODES.has(code) || !Number.isFinite(quantity) || quantity < 1) return;
   items.set(code, (items.get(code) || 0) + quantity);
 }
 
@@ -201,6 +213,7 @@ function swapCollectors() {
   fields.userRepeated.value = fields.friendRepeated.value;
   fields.friendMissing.value = userMissing;
   fields.friendRepeated.value = userRepeated;
+  ignoredTradeStickers.clear();
   handleFormChanged();
 }
 
@@ -280,13 +293,20 @@ function formatCodeToken(code, quantity, mode) {
 }
 
 function formatGroupTitle(prefix, format) {
-  const flag = TEAM_FLAGS[prefix];
+  const flag = TEAM_BY_CODE[prefix]?.flag;
   const title = flag ? `${flag} ${prefix}` : prefix;
   return format === "app" ? `*${title}*` : title;
 }
 
-function stickerKind(code) {
+function stickerKind(code, strategy = TRADE_STRATEGIES.BRIGHT) {
   const { prefix, number } = stickerInfo(code);
+
+  if (strategy === TRADE_STRATEGIES.BRIGHT_SELECTIONS) {
+    if (prefix === "FWC" || number === 1) return TRADE_KINDS.SELECTION_SHINY;
+    if (prefix === "CC") return TRADE_KINDS.CC;
+    if (number === 13) return TRADE_KINDS.NUMBER_THIRTEEN;
+    return TRADE_KINDS.STANDARD;
+  }
 
   if (prefix === "FWC") {
     return TRADE_KINDS.FWC;
@@ -296,8 +316,8 @@ function stickerKind(code) {
     return TRADE_KINDS.CC;
   }
 
-  if (number === 1 || number === 13) {
-    return TRADE_KINDS.SPECIAL;
+  if (number === 1) {
+    return TRADE_KINDS.NUMBER_ONE;
   }
 
   return TRADE_KINDS.STANDARD;
@@ -319,12 +339,12 @@ function stickerInfo(code) {
   };
 }
 
-function expandedMatches(repeated, missing) {
+function expandedMatches(repeated, missing, strategy) {
   const matches = [];
 
   repeated.forEach((quantity, code) => {
     if (!missing.has(code) || quantity < 1) return;
-    matches.push({ code, kind: stickerKind(code), quantity });
+    matches.push({ code, kind: stickerKind(code, strategy), quantity });
   });
 
   return matches.sort((a, b) => compareSticker(a.code, b.code));
@@ -338,7 +358,7 @@ function compareSticker(a, b) {
   return (aInfo.number || 0) - (bInfo.number || 0);
 }
 
-function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, strategy = TRADE_STRATEGIES.STRICT) {
+function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, strategy = TRADE_STRATEGIES.BRIGHT) {
   if (strategy === TRADE_STRATEGIES.POSSIBILITIES) {
     return buildPossibilities(userMissing, friendRepeated);
   }
@@ -352,7 +372,7 @@ function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, s
     return pairByKindTrades(pools.userCanGive, pools.friendCanGive, true);
   }
 
-  if (strategy === TRADE_STRATEGIES.STRICT) {
+  if (strategy === TRADE_STRATEGIES.BRIGHT || strategy === TRADE_STRATEGIES.BRIGHT_SELECTIONS) {
     return pairByKindTrades(pools.userCanGive, pools.friendCanGive, true);
   }
 
@@ -403,8 +423,8 @@ function tradePools(userRepeated, userMissing, friendRepeated, friendMissing, st
 
   if (strategy === TRADE_STRATEGIES.REPEATED) {
     return {
-      userCanGive: expandedMatches(userRepeated, friendMissing),
-      friendCanGive: repeatedTradeReturns(friendRepeated, userRepeated),
+      userCanGive: expandedMatches(userRepeated, friendMissing, strategy),
+      friendCanGive: repeatedTradeReturns(friendRepeated, userRepeated, strategy),
     };
   }
 
@@ -416,8 +436,8 @@ function tradePools(userRepeated, userMissing, friendRepeated, friendMissing, st
   }
 
   return {
-    userCanGive: expandedMatches(userRepeated, friendMissing),
-    friendCanGive: expandedMatches(friendRepeated, userMissing),
+    userCanGive: expandedMatches(userRepeated, friendMissing, strategy),
+    friendCanGive: expandedMatches(friendRepeated, userMissing, strategy),
   };
 }
 
@@ -446,7 +466,14 @@ function pairSameNumberTrades(userCanGive, friendCanGive) {
 function pairByKindTrades(userCanGive, friendCanGive, spreadCountries = false) {
   const trades = [];
 
-  [TRADE_KINDS.FWC, TRADE_KINDS.CC, TRADE_KINDS.SPECIAL, TRADE_KINDS.STANDARD].forEach((kind) => {
+  [
+    TRADE_KINDS.FWC,
+    TRADE_KINDS.CC,
+    TRADE_KINDS.NUMBER_ONE,
+    TRADE_KINDS.NUMBER_THIRTEEN,
+    TRADE_KINDS.SELECTION_SHINY,
+    TRADE_KINDS.STANDARD,
+  ].forEach((kind) => {
     const userCandidates = userCanGive.filter((item) => item.kind === kind);
     const friendCandidates = friendCanGive.filter((item) => item.kind === kind);
     const userPool = spreadCountries ? spreadCandidatesByPrefix(userCandidates) : userCandidates;
@@ -500,12 +527,12 @@ function spreadCandidatesByPrefix(candidates) {
   return spread;
 }
 
-function repeatedTradeReturns(sourceRepeated, targetRepeated) {
+function repeatedTradeReturns(sourceRepeated, targetRepeated, strategy) {
   const matches = [];
 
   sourceRepeated.forEach((quantity, code) => {
     if (targetRepeated.has(code) || quantity < 1) return;
-    matches.push({ code, kind: stickerKind(code), quantity });
+    matches.push({ code, kind: stickerKind(code, strategy), quantity });
   });
 
   return matches.sort((a, b) => compareSticker(a.code, b.code));
@@ -537,7 +564,9 @@ function isSpecialFamily(prefix) {
 
 function compare() {
   const parsed = getParsedInputs();
-  const trades = buildTrades(parsed.userRepeated, parsed.userMissing, parsed.friendRepeated, parsed.friendMissing, selectedStrategy());
+  pruneIgnoredTradeStickers(parsed);
+  const filtered = filterIgnoredTradeStickers(parsed);
+  const trades = buildTrades(filtered.userRepeated, filtered.userMissing, filtered.friendRepeated, filtered.friendMissing, selectedStrategy());
 
   currentTrades = trades;
   hasCompared = true;
@@ -545,6 +574,34 @@ function compare() {
   syncUrlNow();
   renderSummary({ ...parsed, trades });
   renderTrades(trades);
+}
+
+function pruneIgnoredTradeStickers(parsed) {
+  ignoredTradeStickers.forEach(({ code, side }, key) => {
+    const source = side === "give" ? parsed.userRepeated : parsed.friendRepeated;
+    if (!source.has(code)) {
+      ignoredTradeStickers.delete(key);
+    }
+  });
+}
+
+function filterIgnoredTradeStickers(parsed) {
+  const filtered = {
+    userMissing: new Map(parsed.userMissing),
+    userRepeated: new Map(parsed.userRepeated),
+    friendMissing: new Map(parsed.friendMissing),
+    friendRepeated: new Map(parsed.friendRepeated),
+  };
+
+  ignoredTradeStickers.forEach(({ code, side }) => {
+    if (side === "give") {
+      filtered.userRepeated.delete(code);
+    } else {
+      filtered.friendRepeated.delete(code);
+    }
+  });
+
+  return filtered;
 }
 
 function renderSummary(parsed) {
@@ -555,7 +612,7 @@ function renderSummary(parsed) {
   scoreboardDetail.textContent = possibilitiesMode
     ? "faltam para você e estão repetidas com a pessoa"
     : strategy === TRADE_STRATEGIES.DIRECT
-      ? "priorizando FWC, CC, 1 e 13"
+      ? "priorizando brilhantes"
       : "conforme a estratégia selecionada";
   tradeLegend.hidden = possibilitiesMode;
   copyWhatsAppButton.title = possibilitiesMode
@@ -572,7 +629,8 @@ function renderSummary(parsed) {
 
 function renderResultContext(parsed) {
   const strategy = selectedStrategy();
-  const pools = tradePools(parsed.userRepeated, parsed.userMissing, parsed.friendRepeated, parsed.friendMissing, strategy);
+  const filtered = filterIgnoredTradeStickers(parsed);
+  const pools = tradePools(filtered.userRepeated, filtered.userMissing, filtered.friendRepeated, filtered.friendMissing, strategy);
 
   resultTitle.textContent = resultTitleText(strategy);
   resultDescription.textContent = resultDescriptionText(strategy, pools, parsed.trades.length);
@@ -580,7 +638,8 @@ function renderResultContext(parsed) {
 
 function resultTitleText(strategy) {
   return {
-    [TRADE_STRATEGIES.STRICT]: "Proposta FWC 1 13",
+    [TRADE_STRATEGIES.BRIGHT]: "Proposta de brilhantes",
+    [TRADE_STRATEGIES.BRIGHT_SELECTIONS]: "Proposta de brilhantes e seleções",
     [TRADE_STRATEGIES.SAME_NUMBER]: "Proposta por mesmo número",
     [TRADE_STRATEGIES.REPEATED]: "Proposta por repetidas",
     [TRADE_STRATEGIES.BALANCED_REPEATED]: "Proposta por repetidas balanceadas",
@@ -593,12 +652,13 @@ function resultDescriptionText(strategy, pools, tradeCount) {
   const userCandidates = pools.userCanGive.length;
   const friendCandidates = pools.friendCanGive.length;
   const strategyReason = {
-    [TRADE_STRATEGIES.STRICT]: "Entram figurinhas repetidas que faltam para o outro lado, mantendo FWC, CC, 1/13 e demais figurinhas em seus grupos e distribuindo a seleção entre países.",
+    [TRADE_STRATEGIES.BRIGHT]: "Entram figurinhas repetidas que faltam para o outro lado, mantendo FWC, CC, número 1 e demais figurinhas em seus grupos. O número 13 é tratado como comum.",
+    [TRADE_STRATEGIES.BRIGHT_SELECTIONS]: "FWC e figurinhas número 1 podem ser pareadas entre si; figurinhas número 13 só pareiam com outras número 13.",
     [TRADE_STRATEGIES.SAME_NUMBER]: "Entram apenas pares da troca direta com a mesma numeração, mantendo FWC e CC dentro da própria família.",
     [TRADE_STRATEGIES.REPEATED]: "Você entrega repetidas que faltam para a pessoa e recebe repetidas dela que não aparecem na sua lista de repetidas. A seleção distribui as figurinhas entre países e dá mais espaço aos países com maiores quantidades repetidas.",
     [TRADE_STRATEGIES.BALANCED_REPEATED]: "Entram apenas sobras com quantidade 2 ou maior, trocadas por sobras que o outro lado não tem como repetida.",
     [TRADE_STRATEGIES.POSSIBILITIES]: "Entram todas as figurinhas que faltam para você e estão na lista de repetidas da outra pessoa, sem exigir uma contrapartida.",
-    [TRADE_STRATEGIES.DIRECT]: "Primeiro são priorizadas trocas entre FWC, CC, 1/13 e demais figurinhas; depois as candidatas restantes são pareadas livremente. Em ambas as etapas, a seleção é distribuída entre países.",
+    [TRADE_STRATEGIES.DIRECT]: "Primeiro são priorizadas trocas entre FWC, CC, número 1 e demais figurinhas; depois as candidatas restantes são pareadas livremente. Em ambas as etapas, a seleção é distribuída entre países.",
   }[strategy];
 
   if (strategy === TRADE_STRATEGIES.POSSIBILITIES) {
@@ -640,7 +700,7 @@ function noTradeReason(strategy, userCandidates, friendCandidates) {
     return "Há candidatas nos dois lados, mas nenhuma tem a mesma numeração com família especial compatível.";
   }
 
-  return "Há candidatas nos dois lados, mas elas ficaram separadas pelas regras de FWC, CC, 1/13 e demais figurinhas.";
+  return "Há candidatas nos dois lados, mas elas ficaram separadas pelas regras da estratégia selecionada.";
 }
 
 function renderImpactSummary(parsed) {
@@ -676,7 +736,10 @@ function renderImpactSummary(parsed) {
 }
 
 function strategyUsesUserMissing(strategy) {
-  return strategy === TRADE_STRATEGIES.STRICT || strategy === TRADE_STRATEGIES.DIRECT || strategy === TRADE_STRATEGIES.SAME_NUMBER;
+  return strategy === TRADE_STRATEGIES.BRIGHT
+    || strategy === TRADE_STRATEGIES.BRIGHT_SELECTIONS
+    || strategy === TRADE_STRATEGIES.DIRECT
+    || strategy === TRADE_STRATEGIES.SAME_NUMBER;
 }
 
 function strategyUsesFriendMissing(strategy) {
@@ -686,7 +749,10 @@ function strategyUsesFriendMissing(strategy) {
 function renderTrades(trades) {
   tradeRows.innerHTML = "";
   const possibilitiesMode = selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES;
-  tradeFooter.hidden = trades.length === 0 || possibilitiesMode;
+  const hasIgnored = ignoredTradeStickers.size > 0;
+  tradeFooter.hidden = possibilitiesMode || (trades.length === 0 && !hasIgnored);
+  acceptTradeButton.hidden = trades.length === 0;
+  renderIgnoredStickers();
   updateUndoButtons();
   renderTradeHeader(possibilitiesMode);
 
@@ -694,6 +760,9 @@ function renderTrades(trades) {
     renderEmptyResults(possibilitiesMode
       ? "Nenhuma possibilidade foi encontrada com estes dados."
       : "Nenhuma troca compatível foi encontrada com estes dados.");
+    if (hasIgnored && !possibilitiesMode) {
+      tableWrap.hidden = false;
+    }
     return;
   }
 
@@ -714,12 +783,47 @@ function renderTrades(trades) {
 
     row.innerHTML = `
       <td>${index + 1}</td>
-      <td>${renderSticker(trade.give)}</td>
-      <td>${renderSticker(trade.receive)}</td>
+      <td>${renderTradeSticker(trade.give, "give")}</td>
+      <td>${renderTradeSticker(trade.receive, "receive")}</td>
       <td><span class="trade-kind ${trade.kind}">${kindLabel(trade.kind)}</span></td>
     `;
     tradeRows.append(row);
   });
+}
+
+function renderTradeSticker(code, side) {
+  return `
+    ${renderSticker(code, `
+      <button class="remove-trade-sticker" type="button" data-ignore-code="${escapeHtml(code)}" data-ignore-side="${side}" title="Ignorar esta figurinha na proposta" aria-label="Ignorar ${escapeHtml(displayStickerCode(code))}">x</button>
+    `)}
+  `;
+}
+
+function renderIgnoredStickers() {
+  ignoredStickers.innerHTML = "";
+
+  [...ignoredTradeStickers.values()]
+    .sort((a, b) => compareSticker(a.code, b.code) || a.side.localeCompare(b.side))
+    .forEach(({ code, side }) => {
+      const button = document.createElement("button");
+      button.className = "ignored-sticker";
+      button.type = "button";
+      button.dataset.restoreCode = code;
+      button.dataset.restoreSide = side;
+      button.title = `${side === "give" ? "Você entrega" : "Pessoa entrega"}: voltar esta figurinha para a proposta`;
+      button.textContent = displayStickerCode(code);
+      ignoredStickers.append(button);
+    });
+}
+
+function ignoreTradeSticker(code, side) {
+  ignoredTradeStickers.set(`${side}:${code}`, { code, side });
+  compare();
+}
+
+function restoreTradeSticker(code, side) {
+  ignoredTradeStickers.delete(`${side}:${code}`);
+  compare();
 }
 
 function renderTradeHeader(possibilitiesMode) {
@@ -752,6 +856,7 @@ function acceptTrade() {
   fields.userRepeated.value = formatSelectionList(parsed.userRepeated, "repeated");
   fields.friendMissing.value = formatSelectionList(parsed.friendMissing, "missing");
   fields.friendRepeated.value = formatSelectionList(parsed.friendRepeated, "repeated");
+  ignoredTradeStickers.clear();
   handleFormChanged();
 }
 
@@ -786,20 +891,46 @@ function receiveSticker(missing, repeated, code) {
   repeated.set(code, Math.min((repeated.get(code) || 0) + 1, 35));
 }
 
-function renderSticker(code) {
+function renderSticker(code, actionMarkup = "") {
+  const info = stickerInfo(code);
+  const flag = TEAM_BY_CODE[info.prefix]?.flag ? `<span class="sticker-flag" aria-hidden="true">${TEAM_BY_CODE[info.prefix].flag}</span>` : "";
   const name = showNamesToggle.checked ? STICKER_NAMES[code] : "";
   const nameMarkup = name ? `<span class="sticker-name">${escapeHtml(name)}</span>` : "";
+  const tooltip = escapeHtml(formatStickerTooltip(code));
   return `
     <span class="sticker-cell">
-      <span class="sticker">${escapeHtml(displayStickerCode(code))}</span>
+      <span class="sticker" data-tooltip="${tooltip}" tabindex="0">${flag}<span>${escapeHtml(displayStickerCode(code))}</span>${actionMarkup}</span>
       ${nameMarkup}
     </span>
   `;
 }
 
+function formatStickerTooltip(code) {
+  const info = stickerInfo(code);
+  const flag = TEAM_BY_CODE[info.prefix]?.flag ? `${TEAM_BY_CODE[info.prefix].flag} ` : "";
+  const name = STICKER_NAMES[code] || "Nome do cromo não encontrado";
+  return `${flag}${displayStickerCode(code)} - ${name}`;
+}
+
+function showTradeStickerTooltip(sticker) {
+  const text = sticker.dataset.tooltip;
+  if (!text) return;
+
+  const rect = sticker.getBoundingClientRect();
+  tradeStickerTooltip.textContent = text;
+  tradeStickerTooltip.hidden = false;
+  const left = rect.left + (rect.width / 2) - (tradeStickerTooltip.offsetWidth / 2);
+  tradeStickerTooltip.style.left = `${Math.max(8, Math.min(left, window.innerWidth - tradeStickerTooltip.offsetWidth - 8))}px`;
+  tradeStickerTooltip.style.top = `${rect.bottom + 8}px`;
+}
+
+function hideTradeStickerTooltip() {
+  tradeStickerTooltip.hidden = true;
+}
+
 function formatStickerForMessage(code) {
   const info = stickerInfo(code);
-  const flag = TEAM_FLAGS[info.prefix] ? `${TEAM_FLAGS[info.prefix]} ` : "";
+  const flag = TEAM_BY_CODE[info.prefix]?.flag ? `${TEAM_BY_CODE[info.prefix].flag} ` : "";
   const name = showNamesToggle.checked && STICKER_NAMES[code] ? ` - ${STICKER_NAMES[code]}` : "";
   return `${flag}${displayStickerCode(code)}${name}`;
 }
@@ -860,19 +991,99 @@ function buildShareUrl() {
 
 function buildSharePayload() {
   const parsed = getParsedInputs();
-  const sections = [
+  return buildSharePayloadFromSections(
     selectedStrategy(),
-    encodeCompactSection(parsed.userMissing),
-    encodeCompactSection(parsed.userRepeated),
-    encodeCompactSection(parsed.friendMissing),
-    encodeCompactSection(parsed.friendRepeated),
+    parsed.userMissing,
+    parsed.userRepeated,
+    parsed.friendMissing,
+    parsed.friendRepeated,
+  );
+}
+
+function buildSharePayloadFromSections(strategy, userMissing, userRepeated, friendMissing, friendRepeated) {
+  const sections = [
+    strategy,
+    encodeShareSection(userMissing),
+    encodeShareSection(userRepeated),
+    encodeShareSection(friendMissing),
+    encodeShareSection(friendRepeated),
   ];
 
-  if (sections[0] === TRADE_STRATEGIES.STRICT && sections.slice(1).every((section) => section === "")) {
+  if (sections[0] === TRADE_STRATEGIES.BRIGHT && sections.slice(1).every((section) => section === "")) {
     return "";
   }
 
-  return sections.join(SHARE_SECTION_SEPARATOR);
+  return `${SHARE_V2_PREFIX}${sections.join(SHARE_SECTION_SEPARATOR)}`;
+}
+
+function encodeShareSection(items) {
+  if (items.size === 0) return "";
+
+  const { numericGroups, looseItems } = groupItems(items);
+  const groups = [];
+  const loose = [];
+
+  numericGroups.forEach((stickers, prefix) => {
+    const prefixIndex = CODE_PREFIX_INDEX[prefix];
+    if (prefixIndex === undefined) {
+      stickers.forEach(({ code }) => loose.push(code));
+      return;
+    }
+
+    const value = encodeShareGroup(stickers, prefix);
+    if (value) {
+      groups.push(formatShareGroup(prefixIndex, value));
+    }
+  });
+
+  looseItems.forEach(({ code }) => loose.push(code));
+
+  if (loose.length > 0) {
+    groups.push(`${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${loose.join(SHARE_GROUP_VALUE_SEPARATOR)}`);
+  }
+
+  return groups.join(SHARE_GROUP_SEPARATOR);
+}
+
+function formatShareGroup(prefixIndex, value) {
+  const prefixToken = prefixIndex.toString(36);
+  return value.startsWith(SHARE_BITMAP_GROUP_SEPARATOR)
+    ? `${prefixToken}${value}`
+    : `${prefixToken}${SHARE_GROUP_VALUE_SEPARATOR}${value}`;
+}
+
+function encodeShareGroup(stickers, prefix) {
+  const sparse = stickers
+    .map(({ number, quantity }) => stickerToShareToken(number, quantity))
+    .join("");
+  const bitmap = encodeBitmapGroup(stickers, prefix);
+
+  return bitmap && bitmap.length < sparse.length ? bitmap : sparse;
+}
+
+function encodeBitmapGroup(stickers, prefix) {
+  let mask = 0;
+  const quantities = [];
+  let invalidNumber = false;
+
+  stickers.forEach(({ number, quantity }) => {
+    const bitIndex = numberToBitmapBit(number, prefix);
+    if (bitIndex === null) {
+      invalidNumber = true;
+      return;
+    }
+
+    mask |= 1 << bitIndex;
+    if (quantity > 1) {
+      quantities.push(`${numberToShareChar(number)}${quantityToShareChar(quantity)}`);
+    }
+  });
+
+  if (invalidNumber) return "";
+
+  const encodedBytes = base62EncodeFixed(mask, 4);
+  const encodedQuantities = quantities.join("");
+  return `${SHARE_BITMAP_GROUP_SEPARATOR}${encodedBytes}${encodedQuantities ? `${SHARE_BITMAP_GROUP_SEPARATOR}${encodedQuantities}` : ""}`;
 }
 
 function encodeCompactSection(items) {
@@ -928,6 +1139,132 @@ function decodeCompactSection(section = "") {
   return items;
 }
 
+function decodeSharePayload(encoded) {
+  if (encoded.startsWith(SHARE_V2_PREFIX)) {
+    const [strategy, userMissing = "", userRepeated = "", friendMissing = "", friendRepeated = ""] = encoded
+      .slice(SHARE_V2_PREFIX.length)
+      .split(SHARE_SECTION_SEPARATOR);
+
+    return {
+      strategy,
+      userMissing: decodeShareSection(userMissing),
+      userRepeated: decodeShareSection(userRepeated),
+      friendMissing: decodeShareSection(friendMissing),
+      friendRepeated: decodeShareSection(friendRepeated),
+    };
+  }
+
+  const [strategy, userMissing = "", userRepeated = "", friendMissing = "", friendRepeated = ""] = encoded.split(SHARE_SECTION_SEPARATOR);
+  return {
+    strategy,
+    userMissing: decodeCompactSection(userMissing),
+    userRepeated: decodeCompactSection(userRepeated),
+    friendMissing: decodeCompactSection(friendMissing),
+    friendRepeated: decodeCompactSection(friendRepeated),
+  };
+}
+
+function decodeShareSection(section = "") {
+  if (!section) return new Map();
+  const items = new Map();
+
+  section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    const isBitmapGroup = group.includes(SHARE_BITMAP_GROUP_SEPARATOR)
+      && (!group.includes(SHARE_GROUP_VALUE_SEPARATOR) || group.indexOf(SHARE_BITMAP_GROUP_SEPARATOR) < group.indexOf(SHARE_GROUP_VALUE_SEPARATOR));
+    const separator = isBitmapGroup ? SHARE_BITMAP_GROUP_SEPARATOR : SHARE_GROUP_VALUE_SEPARATOR;
+    const parts = group.split(separator);
+    const prefixToken = parts.shift();
+    if (prefixToken === SHARE_LOOSE_GROUP) {
+      parts
+        .filter(Boolean)
+        .forEach((code) => addItem(items, code, 1));
+      return;
+    }
+
+    const value = parts.join(separator);
+    const prefixIndex = Number.parseInt(prefixToken, 36);
+    const prefix = CODE_PREFIXES[prefixIndex];
+    if (!prefix || !value) return;
+
+    decodeShareGroup(value, prefix, isBitmapGroup).forEach(({ number, quantity }) => {
+      addItem(items, `${prefix}${number}`, quantity);
+    });
+  });
+
+  return items;
+}
+
+function decodeShareGroup(value, prefix, isBitmapGroup) {
+  if (isBitmapGroup) {
+    return decodeBitmapGroup(value, prefix);
+  }
+  return shareTokens(value);
+}
+
+function decodeBitmapGroup(value, prefix) {
+  const [encodedBytes = "", encodedQuantities = ""] = value.split(SHARE_BITMAP_GROUP_SEPARATOR);
+  const quantities = decodeBitmapGroupQuantities(encodedQuantities);
+  const tokens = [];
+
+  const mask = base62Decode(encodedBytes);
+
+  for (let bit = 0; bit < 20; bit += 1) {
+    if (!(mask & (1 << bit))) continue;
+
+    const number = bitmapBitToNumber(bit, prefix);
+    if (number !== null) {
+      tokens.push({ number, quantity: quantities.get(number) || 1 });
+    }
+  }
+
+  return tokens;
+}
+
+function decodeBitmapGroupQuantities(encodedQuantities) {
+  const quantities = new Map();
+
+  for (let index = 0; index + 1 < encodedQuantities.length; index += 2) {
+    const number = shareCharToNumber(encodedQuantities[index]);
+    const quantity = shareCharToQuantity(encodedQuantities[index + 1]);
+    if (number !== null && quantity > 1) {
+      quantities.set(number, quantity);
+    }
+  }
+
+  return quantities;
+}
+
+function numberToBitmapBit(number, prefix) {
+  if (prefix === "FWC") return number >= 0 && number <= 19 ? number : null;
+  if (number >= 1 && number <= 20) return number - 1;
+  return null;
+}
+
+function bitmapBitToNumber(bitIndex, prefix) {
+  if (bitIndex < 0 || bitIndex > 19) return null;
+  if (prefix === "FWC") return bitIndex;
+  return bitIndex + 1;
+}
+
+function base62EncodeFixed(value, length) {
+  let output = "";
+  let remaining = value;
+
+  for (let index = 0; index < length; index += 1) {
+    output = BASE62_CHARS[remaining % 62] + output;
+    remaining = Math.floor(remaining / 62);
+  }
+
+  return output;
+}
+
+function base62Decode(value) {
+  return [...value].reduce((total, char) => {
+    const charValue = BASE62_CHARS.indexOf(char);
+    return charValue === -1 ? total : (total * 62) + charValue;
+  }, 0);
+}
+
 function stickerToShareToken(number, quantity) {
   const numberToken = numberToShareChar(number);
   const quantityToken = quantityToShareChar(quantity);
@@ -981,14 +1318,14 @@ function loadSharedComparison() {
   if (!encoded) return;
 
   try {
-    const [strategy, userMissing, userRepeated, friendMissing, friendRepeated] = encoded.split(SHARE_SECTION_SEPARATOR);
+    const { strategy, userMissing, userRepeated, friendMissing, friendRepeated } = decodeSharePayload(encoded);
 
     showNamesToggle.checked = false;
     setSelectedStrategy(strategy);
-    fields.userMissing.value = formatSelectionList(decodeCompactSection(userMissing), "missing");
-    fields.userRepeated.value = formatSelectionList(decodeCompactSection(userRepeated), "repeated");
-    fields.friendMissing.value = formatSelectionList(decodeCompactSection(friendMissing), "missing");
-    fields.friendRepeated.value = formatSelectionList(decodeCompactSection(friendRepeated), "repeated");
+    fields.userMissing.value = formatSelectionList(userMissing, "missing");
+    fields.userRepeated.value = formatSelectionList(userRepeated, "repeated");
+    fields.friendMissing.value = formatSelectionList(friendMissing, "missing");
+    fields.friendRepeated.value = formatSelectionList(friendRepeated, "repeated");
     compare();
   } catch (_error) {
     renderEmptyResults("Não foi possível carregar a comparação compartilhada.");
@@ -1026,12 +1363,13 @@ function whatsappKindLabel(kind) {
 
 function whatsappStrategyText() {
   return {
-    [TRADE_STRATEGIES.STRICT]: "Nesta proposta estou considerando FWC com FWC, CC com CC e 1 e 13 somente entre elas, distribuindo a seleção entre países.",
+    [TRADE_STRATEGIES.BRIGHT]: "Nesta proposta estou considerando FWC com FWC, CC com CC e número 1 com número 1; o número 13 participa como figurinha comum.",
+    [TRADE_STRATEGIES.BRIGHT_SELECTIONS]: "Nesta proposta FWC e número 1 podem ser trocados entre si, enquanto número 13 troca somente com número 13.",
     [TRADE_STRATEGIES.SAME_NUMBER]: "Nesta proposta combinei somente figurinhas com mesmo número.",
     [TRADE_STRATEGIES.REPEATED]: "Nesta proposta estou considerando troca de repetidas, distribuindo a seleção entre países e priorizando os que possuem maiores quantidades repetidas.",
     [TRADE_STRATEGIES.BALANCED_REPEATED]: "Nesta proposta estou considerando troca de repetidas balanceadas: cada pessoa entrega uma sobra que a outra não tem como repetida.",
     [TRADE_STRATEGIES.POSSIBILITIES]: "Nesta lista estou considerando as figurinhas que faltam para mim e aparecem nas repetidas da outra pessoa.",
-    [TRADE_STRATEGIES.DIRECT]: "Nesta proposta priorizei FWC, CC e 1/13 entre seus grupos, distribuí a seleção entre países e completei as trocas restantes livremente.",
+    [TRADE_STRATEGIES.DIRECT]: "Nesta proposta priorizei FWC, CC e número 1 entre seus grupos, distribuí a seleção entre países e completei as trocas restantes livremente.",
   }[selectedStrategy()];
 }
 
@@ -1067,16 +1405,16 @@ async function shareComparison() {
 function openUserTable() {
   syncUrlNow();
   const parsed = getParsedInputs();
-  const payload = [
-    TRADE_STRATEGIES.STRICT,
-    encodeCompactSection(parsed.userMissing),
-    encodeCompactSection(parsed.userRepeated),
-    "",
-    "",
-  ].join(SHARE_SECTION_SEPARATOR);
+  const payload = buildSharePayloadFromSections(
+    TRADE_STRATEGIES.BRIGHT,
+    parsed.userMissing,
+    parsed.userRepeated,
+    new Map(),
+    new Map(),
+  );
   const url = new URL("tabela.html", window.location.href);
 
-  if (payload !== `${TRADE_STRATEGIES.STRICT}~~~~`) {
+  if (payload) {
     url.searchParams.set(SHARE_PARAM, payload);
   }
 
@@ -1132,6 +1470,8 @@ function escapeHtml(value) {
 function clearComparison() {
   tradeRows.innerHTML = "";
   tradeFooter.hidden = true;
+  ignoredTradeStickers.clear();
+  renderIgnoredStickers();
   updateUndoButtons();
   currentTrades = [];
   hasCompared = false;
@@ -1155,7 +1495,7 @@ function renderStrategyIntro() {
   scoreboardLabel.textContent = possibilitiesMode ? "possibilidades encontradas" : "trocas possíveis";
   scoreboardDetail.textContent = possibilitiesMode
     ? "faltam para você e estão repetidas com a pessoa"
-    : "respeitando FWC, CC, 1 e 13";
+    : "conforme a estratégia selecionada";
   tradeLegend.hidden = possibilitiesMode;
   copyWhatsAppButton.title = possibilitiesMode
     ? "Copiar lista abaixo para ser enviada por WhatsApp"
@@ -1166,11 +1506,11 @@ function renderStrategyIntro() {
 }
 
 function selectedStrategy() {
-  return strategyInputs.find((input) => input.checked)?.value || TRADE_STRATEGIES.STRICT;
+  return strategyInputs.find((input) => input.checked)?.value || TRADE_STRATEGIES.BRIGHT;
 }
 
-function setSelectedStrategy(strategy = TRADE_STRATEGIES.STRICT) {
-  const normalizedStrategy = TRADE_STRATEGY_LABELS[strategy] ? strategy : TRADE_STRATEGIES.STRICT;
+function setSelectedStrategy(strategy = TRADE_STRATEGIES.BRIGHT) {
+  const normalizedStrategy = TRADE_STRATEGY_LABELS[strategy] ? strategy : TRADE_STRATEGIES.BRIGHT;
   strategyInputs.forEach((input) => {
     input.checked = input.value === normalizedStrategy;
   });
@@ -1210,6 +1550,37 @@ clearButton.addEventListener("click", clearComparison);
 acceptTradeButton.addEventListener("click", acceptTrade);
 undoTradeButton.addEventListener("click", undoLastTrade);
 undoTradeFooterButton.addEventListener("click", undoLastTrade);
+tradeRows.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-ignore-code][data-ignore-side]");
+  if (!button) return;
+  ignoreTradeSticker(button.dataset.ignoreCode, button.dataset.ignoreSide);
+});
+tradeRows.addEventListener("mouseup", (event) => {
+  if (event.target.closest(".remove-trade-sticker")) return;
+  const sticker = event.target.closest(".sticker[data-tooltip]");
+  if (!sticker) return;
+  showTradeStickerTooltip(sticker);
+});
+tradeRows.addEventListener("mouseover", (event) => {
+  const sticker = event.target.closest(".sticker[data-tooltip]");
+  if (!sticker) return;
+  showTradeStickerTooltip(sticker);
+});
+tradeRows.addEventListener("mouseout", (event) => {
+  if (!event.target.closest(".sticker[data-tooltip]")) return;
+  hideTradeStickerTooltip();
+});
+tradeRows.addEventListener("focusin", (event) => {
+  const sticker = event.target.closest(".sticker[data-tooltip]");
+  if (!sticker) return;
+  showTradeStickerTooltip(sticker);
+});
+tradeRows.addEventListener("focusout", hideTradeStickerTooltip);
+ignoredStickers.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-restore-code][data-restore-side]");
+  if (!button) return;
+  restoreTradeSticker(button.dataset.restoreCode, button.dataset.restoreSide);
+});
 tableButton.addEventListener("click", openUserTable);
 swapCollectorsButton.addEventListener("click", swapCollectors);
 copyWhatsAppButton.addEventListener("click", copyWhatsAppText);
@@ -1254,6 +1625,11 @@ helpDialog.addEventListener("click", (event) => {
   if (event.target === helpDialog) {
     helpDialog.close();
   }
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".sticker[data-tooltip]")) return;
+  hideTradeStickerTooltip();
 });
 
 renderStrategyIntro();

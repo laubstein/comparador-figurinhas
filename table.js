@@ -2,67 +2,20 @@ const SHARE_PARAM = "c";
 const SHARE_SECTION_SEPARATOR = "~";
 const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
+const SHARE_BITMAP_GROUP_SEPARATOR = ".";
 const SHARE_LOOSE_GROUP = "x";
+const SHARE_V2_PREFIX = "2:";
+const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
 const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const STICKERS_PER_TEAM = 20;
-const { TEAM_FLAGS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
-
-const TEAMS = [
-  { group: "A", code: "CZE", country: "Tchéquia" },
-  { group: "A", code: "KOR", country: "Coreia do Sul" },
-  { group: "A", code: "MEX", country: "México" },
-  { group: "A", code: "RSA", country: "África do Sul" },
-  { group: "B", code: "BIH", country: "Bósnia e Herzegovina" },
-  { group: "B", code: "CAN", country: "Canadá" },
-  { group: "B", code: "QAT", country: "Catar" },
-  { group: "B", code: "SUI", country: "Suíça" },
-  { group: "C", code: "BRA", country: "Brasil" },
-  { group: "C", code: "HAI", country: "Haiti" },
-  { group: "C", code: "MAR", country: "Marrocos" },
-  { group: "C", code: "SCO", country: "Escócia" },
-  { group: "D", code: "AUS", country: "Austrália" },
-  { group: "D", code: "PAR", country: "Paraguai" },
-  { group: "D", code: "TUR", country: "Turquia" },
-  { group: "D", code: "USA", country: "Estados Unidos" },
-  { group: "E", code: "CIV", country: "Costa do Marfim" },
-  { group: "E", code: "CUW", country: "Curaçao" },
-  { group: "E", code: "ECU", country: "Equador" },
-  { group: "E", code: "GER", country: "Alemanha" },
-  { group: "F", code: "JPN", country: "Japão" },
-  { group: "F", code: "NED", country: "Países Baixos" },
-  { group: "F", code: "SWE", country: "Suécia" },
-  { group: "F", code: "TUN", country: "Tunísia" },
-  { group: "G", code: "BEL", country: "Bélgica" },
-  { group: "G", code: "EGY", country: "Egito" },
-  { group: "G", code: "IRN", country: "Irã" },
-  { group: "G", code: "NZL", country: "Nova Zelândia" },
-  { group: "H", code: "CPV", country: "Cabo Verde" },
-  { group: "H", code: "ESP", country: "Espanha" },
-  { group: "H", code: "KSA", country: "Arábia Saudita" },
-  { group: "H", code: "URU", country: "Uruguai" },
-  { group: "I", code: "FRA", country: "França" },
-  { group: "I", code: "IRQ", country: "Iraque" },
-  { group: "I", code: "NOR", country: "Noruega" },
-  { group: "I", code: "SEN", country: "Senegal" },
-  { group: "J", code: "ALG", country: "Argélia" },
-  { group: "J", code: "ARG", country: "Argentina" },
-  { group: "J", code: "AUT", country: "Áustria" },
-  { group: "J", code: "JOR", country: "Jordânia" },
-  { group: "K", code: "COD", country: "Rep. Democrática do Congo" },
-  { group: "K", code: "COL", country: "Colômbia" },
-  { group: "K", code: "POR", country: "Portugal" },
-  { group: "K", code: "UZB", country: "Uzbequistão" },
-  { group: "L", code: "CRO", country: "Croácia" },
-  { group: "L", code: "ENG", country: "Inglaterra" },
-  { group: "L", code: "GHA", country: "Gana" },
-  { group: "L", code: "PAN", country: "Panamá" },
-];
-const FWC_TEAM = { group: "-", code: "FWC", country: "FWC" };
+const { TEAMS: ALL_TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
+const TEAMS = ALL_TEAMS.filter(({ code }) => code !== "FWC" && code !== "CC");
+const FWC_TEAM = ALL_TEAMS.find(({ code }) => code === "FWC");
 const ALBUM_ROWS = [...TEAMS, FWC_TEAM];
 const ALBUM_ROW_BY_CODE = Object.fromEntries(ALBUM_ROWS.map((row) => [row.code, row]));
 
-const CODE_PREFIXES = Object.keys(TEAM_FLAGS);
+const CODE_PREFIXES = ALL_TEAMS.map(({ code }) => code);
 
 const tableHead = document.querySelector("#albumTableHead");
 const tableBody = document.querySelector("#albumTableBody");
@@ -79,12 +32,81 @@ function decodeSharedData() {
     return { userMissing: new Set(), userRepeated: new Set(), hasData: false };
   }
 
+  const { userMissing, userRepeated } = decodeSharePayload(encoded);
+  return {
+    userMissing,
+    userRepeated,
+    hasData: userMissing.size > 0 || userRepeated.size > 0,
+  };
+}
+
+function decodeSharePayload(encoded) {
+  if (encoded.startsWith(SHARE_V2_PREFIX)) {
+    const [, userMissing = "", userRepeated = ""] = encoded
+      .slice(SHARE_V2_PREFIX.length)
+      .split(SHARE_SECTION_SEPARATOR);
+
+    return {
+      userMissing: decodeShareSection(userMissing),
+      userRepeated: decodeShareSection(userRepeated),
+    };
+  }
+
   const [, userMissing = "", userRepeated = ""] = encoded.split(SHARE_SECTION_SEPARATOR);
   return {
     userMissing: decodeCompactSection(userMissing),
     userRepeated: decodeCompactSection(userRepeated),
-    hasData: Boolean(userMissing || userRepeated),
   };
+}
+
+function decodeShareSection(section = "") {
+  if (!section) return new Set();
+  const items = new Set();
+
+  section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    const isBitmapGroup = group.includes(SHARE_BITMAP_GROUP_SEPARATOR)
+      && (!group.includes(SHARE_GROUP_VALUE_SEPARATOR) || group.indexOf(SHARE_BITMAP_GROUP_SEPARATOR) < group.indexOf(SHARE_GROUP_VALUE_SEPARATOR));
+    const separator = isBitmapGroup ? SHARE_BITMAP_GROUP_SEPARATOR : SHARE_GROUP_VALUE_SEPARATOR;
+    const parts = group.split(separator);
+    const prefixToken = parts.shift();
+    if (prefixToken === SHARE_LOOSE_GROUP) {
+      parts.filter(Boolean).forEach((code) => items.add(code));
+      return;
+    }
+
+    const value = parts.join(separator);
+    const prefixIndex = Number.parseInt(prefixToken, 36);
+    const prefix = CODE_PREFIXES[prefixIndex];
+    if (!prefix || !value) return;
+
+    decodeShareGroup(value, prefix, isBitmapGroup).forEach((number) => {
+      items.add(`${prefix}${number}`);
+    });
+  });
+
+  return items;
+}
+
+function decodeShareGroup(value, prefix, isBitmapGroup) {
+  if (isBitmapGroup) {
+    return decodeBitmapGroup(value, prefix);
+  }
+  return shareNumbers(value);
+}
+
+function decodeBitmapGroup(value, prefix) {
+  const [encodedBytes = ""] = value.split(SHARE_BITMAP_GROUP_SEPARATOR);
+  const numbers = [];
+  const mask = base62Decode(encodedBytes);
+
+  for (let bit = 0; bit < 20; bit += 1) {
+    if (!(mask & (1 << bit))) continue;
+
+    const number = bitmapBitToNumber(bit, prefix);
+    if (number !== null) numbers.push(number);
+  }
+
+  return numbers;
 }
 
 function decodeCompactSection(section = "") {
@@ -137,6 +159,19 @@ function shareCharToNumber(char) {
 
 function isShareQuantityChar(char) {
   return SHARE_QUANTITY_CHARS.includes(char);
+}
+
+function bitmapBitToNumber(bitIndex, prefix) {
+  if (bitIndex < 0 || bitIndex > 19) return null;
+  if (prefix === "FWC") return bitIndex;
+  return bitIndex + 1;
+}
+
+function base62Decode(value) {
+  return [...value].reduce((total, char) => {
+    const charValue = BASE62_CHARS.indexOf(char);
+    return charValue === -1 ? total : (total * 62) + charValue;
+  }, 0);
 }
 
 function renderTable() {
@@ -294,7 +329,7 @@ function addTextCell(row, text, className) {
 }
 
 function formatStickerTooltip(code, team) {
-  const flag = TEAM_FLAGS[team.code] ? `${TEAM_FLAGS[team.code]} ` : "";
+  const flag = team.flag ? `${team.flag} ` : "";
   const name = STICKER_NAMES[code] || "Nome do cromo não encontrado";
   return `${flag}${displayStickerCode(code)} - ${name}`;
 }

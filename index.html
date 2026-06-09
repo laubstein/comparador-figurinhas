@@ -56,7 +56,7 @@
         <div class="scoreboard" aria-label="Resumo da comparação">
           <span id="userGivesCount">0</span>
           <strong id="scoreboardLabel">trocas possíveis</strong>
-          <small id="scoreboardDetail">respeitando FWC, CC, 1 e 13</small>
+          <small id="scoreboardDetail">conforme a estratégia selecionada</small>
         </div>
       </section>
 
@@ -114,7 +114,11 @@
             </label>
             <label>
               <input type="radio" name="tradeStrategy" value="0" checked>
-              <span>FWC 1 13</span>
+              <span>Brilhantes</span>
+            </label>
+            <label>
+              <input type="radio" name="tradeStrategy" value="6">
+              <span>Brilhantes Seleções</span>
             </label>
             <label>
               <input type="radio" name="tradeStrategy" value="1">
@@ -145,9 +149,9 @@
         <div class="results-header">
           <div>
             <p class="eyebrow">Cruzamento para troca</p>
-            <h2 id="resultTitle">Proposta FWC 1 13</h2>
+            <h2 id="resultTitle">Proposta de brilhantes</h2>
             <p id="resultDescription" class="results-description">
-              Entram figurinhas repetidas que faltam para o outro lado, mantendo FWC, CC, 1/13 e demais figurinhas em seus grupos.
+              Mantém FWC, CC, número 1 e demais figurinhas em seus grupos; número 13 participa como figurinha comum.
             </p>
           </div>
           <div class="results-actions">
@@ -163,7 +167,7 @@
             <div class="legend">
               <span><i class="dot dot-fwc"></i> FWC</span>
               <span><i class="dot dot-fwc"></i> CC</span>
-              <span><i class="dot dot-special"></i> 1 ou 13</span>
+              <span><i class="dot dot-special"></i> Números 1 e 13</span>
               <span><i class="dot dot-standard"></i> Demais</span>
             </div>
           </div>
@@ -190,12 +194,17 @@
             <tfoot id="tradeFooter" hidden>
               <tr>
                 <td colspan="4">
-                  <button id="undoTradeFooterButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>
-                    Desfazer última troca
-                  </button>
-                  <button id="acceptTradeButton" type="button" title="Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas">
-                    Troca aceita
-                  </button>
+                  <div class="trade-footer-content">
+                    <div id="ignoredStickers" class="ignored-stickers" aria-label="Figurinhas ignoradas"></div>
+                    <div class="trade-footer-actions">
+                      <button id="undoTradeFooterButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>
+                        Desfazer última troca
+                      </button>
+                      <button id="acceptTradeButton" type="button" title="Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas">
+                        Troca aceita
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
             </tfoot>
@@ -224,8 +233,8 @@
             falta para você. Cada código aparece no máximo uma vez em cada lado da proposta.
           </p>
           <p>
-            Na estratégia FWC 1 13, FWC só troca com FWC; CC só troca com CC; figurinhas número 1 e 13 só trocam entre si;
-            e as demais trocam apenas com outras figurinhas comuns. A estratégia Direta prioriza essas regras e depois
+            Na estratégia Brilhantes, FWC só troca com FWC, CC só troca com CC e número 1 só troca com número 1;
+            número 13 participa como comum. A estratégia Direta prioriza essas regras e depois
             combina livremente as candidatas restantes.
           </p>
           <p>
@@ -234,15 +243,23 @@
             É possível desfazer as cinco últimas trocas aceitas durante a sessão. A lista de possibilidades não possui
             esses botões porque não representa uma troca completa.
           </p>
+          <p>
+            Use o <strong>x</strong> ao lado de uma figurinha da proposta para ignorá-la e recalcular a troca sem ela.
+            As figurinhas ignoradas aparecem no rodapé da tabela; clique em uma delas para permitir sua participação novamente.
+          </p>
 
           <section id="strategyHelp" class="help-section" tabindex="-1">
             <h3>Estratégias de troca</h3>
             <p>
-              <strong>FWC 1 13:</strong> mantém FWC, CC, figurinhas 1/13 e demais figurinhas em seus próprios grupos,
-              distribuindo as figurinhas comuns entre países.
+              <strong>Brilhantes:</strong> mantém FWC, CC, número 1 e demais figurinhas em seus próprios grupos. O número
+              13 participa como figurinha comum.
             </p>
             <p>
-              <strong>Direta:</strong> prioriza os grupos de FWC, CC e 1/13, mas depois combina livremente as candidatas
+              <strong>Brilhantes Seleções:</strong> permite trocar FWC por figurinhas número 1, enquanto figurinhas número
+              13 só podem ser pareadas com outras número 13.
+            </p>
+            <p>
+              <strong>Direta:</strong> prioriza os grupos de FWC, CC e número 1, mas depois combina livremente as candidatas
               restantes, inclusive entre grupos diferentes, para aproveitar mais possibilidades de troca. A seleção
               também faz rodízio entre países, dando mais espaço aos que possuem maiores quantidades repetidas.
             </p>
@@ -279,7 +296,7 @@ FWC1, FWC3</code></pre>
           <h3>Formato por seleção</h3>
           <pre><code>🇧🇷 BRA - 6, 10, 14
 🇰🇷 KOR - 1, 7, 8
-🏳️ FWC - 1, 4, 5</code></pre>
+🌎 FWC - 1, 4, 5</code></pre>
 
           <h3>Formato por seleção com emoji</h3>
           <pre><code>*Faltantes*
@@ -321,6 +338,8 @@ CC 🥤: 5, 8, 10, 11</code></pre>
         </a>
       </p>
     </footer>
+
+    <div id="tradeStickerTooltip" class="sticker-tooltip" role="status" aria-live="polite" hidden></div>
 
     <script src="sticker-data.js"></script>
     <script src="app.js"></script>
