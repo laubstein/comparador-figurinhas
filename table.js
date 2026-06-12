@@ -4,6 +4,7 @@ const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
 const SHARE_BITMAP_GROUP_SEPARATOR = ".";
 const SHARE_LOOSE_GROUP = "x";
+const SHARE_LOOSE_GROUP_PREFIX = `${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${SHARE_GROUP_VALUE_SEPARATOR}`;
 const SHARE_V2_PREFIX = "2:";
 const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
@@ -64,17 +65,19 @@ function decodeShareSection(section = "") {
   const items = new Set();
 
   section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    if (decodeLooseShareGroup(group, items)) return;
+
     const isBitmapGroup = group.includes(SHARE_BITMAP_GROUP_SEPARATOR)
       && (!group.includes(SHARE_GROUP_VALUE_SEPARATOR) || group.indexOf(SHARE_BITMAP_GROUP_SEPARATOR) < group.indexOf(SHARE_GROUP_VALUE_SEPARATOR));
     const separator = isBitmapGroup ? SHARE_BITMAP_GROUP_SEPARATOR : SHARE_GROUP_VALUE_SEPARATOR;
     const parts = group.split(separator);
     const prefixToken = parts.shift();
-    if (prefixToken === SHARE_LOOSE_GROUP) {
+    const value = parts.join(separator);
+    if (prefixToken === SHARE_LOOSE_GROUP && !isBitmapGroup && !isCanonicalSparseShareValue(value)) {
       parts.filter(Boolean).forEach((code) => items.add(code));
       return;
     }
 
-    const value = parts.join(separator);
     const prefixIndex = Number.parseInt(prefixToken, 36);
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
@@ -114,14 +117,16 @@ function decodeCompactSection(section = "") {
   if (!section) return items;
 
   section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    if (decodeLooseShareGroup(group, items)) return;
+
     const parts = group.split(SHARE_GROUP_VALUE_SEPARATOR);
     const prefixToken = parts.shift();
-    if (prefixToken === SHARE_LOOSE_GROUP) {
+    const value = parts.join(SHARE_GROUP_VALUE_SEPARATOR);
+    if (prefixToken === SHARE_LOOSE_GROUP && !isCanonicalSparseShareValue(value)) {
       parts.filter(Boolean).forEach((code) => items.add(code));
       return;
     }
 
-    const value = parts.join(SHARE_GROUP_VALUE_SEPARATOR);
     const prefixIndex = Number.parseInt(prefixToken, 36);
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
@@ -159,6 +164,30 @@ function shareCharToNumber(char) {
 
 function isShareQuantityChar(char) {
   return SHARE_QUANTITY_CHARS.includes(char);
+}
+
+function isCanonicalSparseShareValue(value) {
+  if (!value || value.includes(SHARE_GROUP_VALUE_SEPARATOR)) return false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (isShareQuantityChar(value[index])) {
+      index += 1;
+      if (index >= value.length) return false;
+    }
+    if (shareCharToNumber(value[index]) === null) return false;
+  }
+
+  return true;
+}
+
+function decodeLooseShareGroup(group, items) {
+  if (!group.startsWith(SHARE_LOOSE_GROUP_PREFIX)) return false;
+  group
+    .slice(SHARE_LOOSE_GROUP_PREFIX.length)
+    .split(SHARE_GROUP_VALUE_SEPARATOR)
+    .filter(Boolean)
+    .forEach((code) => items.add(code));
+  return true;
 }
 
 function bitmapBitToNumber(bitIndex, prefix) {

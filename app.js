@@ -25,6 +25,7 @@ const tradeHeadRow = document.querySelector("#tradeHeadRow");
 const tradeRows = document.querySelector("#tradeRows");
 const tradeFooter = document.querySelector("#tradeFooter");
 const acceptTradeButton = document.querySelector("#acceptTradeButton");
+const removePossibilitiesButton = document.querySelector("#removePossibilitiesButton");
 const ignoredStickers = document.querySelector("#ignoredStickers");
 const emptyState = document.querySelector("#emptyState");
 const emptyStateMessageElement = document.querySelector("#emptyStateMessage");
@@ -82,6 +83,7 @@ const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
 const SHARE_BITMAP_GROUP_SEPARATOR = ".";
 const SHARE_LOOSE_GROUP = "x";
+const SHARE_LOOSE_GROUP_PREFIX = `${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${SHARE_GROUP_VALUE_SEPARATOR}`;
 const SHARE_V2_PREFIX = "2:";
 const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
@@ -360,7 +362,10 @@ function compareSticker(a, b) {
 
 function buildTrades(userRepeated, userMissing, friendRepeated, friendMissing, strategy = TRADE_STRATEGIES.BRIGHT) {
   if (strategy === TRADE_STRATEGIES.POSSIBILITIES) {
-    return buildPossibilities(userMissing, friendRepeated);
+    return [
+      ...buildPossibilities(userMissing, friendRepeated, "user", "receive"),
+      ...buildPossibilities(friendMissing, userRepeated, "friend", "give"),
+    ];
   }
 
   const pools = tradePools(userRepeated, userMissing, friendRepeated, friendMissing, strategy);
@@ -402,12 +407,12 @@ function pairPrioritizedTrades(userCanGive, friendCanGive, spreadCountries = fal
   return prioritized;
 }
 
-function buildPossibilities(userMissing, friendRepeated) {
+function buildPossibilities(missing, repeated, seeker, side) {
   const possibilities = [];
 
-  friendRepeated.forEach((quantity, code) => {
-    if (!userMissing.has(code) || quantity < 1) return;
-    possibilities.push({ receive: code, quantity, possibility: true });
+  repeated.forEach((quantity, code) => {
+    if (!missing.has(code) || quantity < 1) return;
+    possibilities.push({ receive: code, quantity, possibility: true, seeker, side });
   });
 
   return possibilities.sort((a, b) => compareSticker(a.receive, b.receive));
@@ -416,8 +421,8 @@ function buildPossibilities(userMissing, friendRepeated) {
 function tradePools(userRepeated, userMissing, friendRepeated, friendMissing, strategy) {
   if (strategy === TRADE_STRATEGIES.POSSIBILITIES) {
     return {
-      userCanGive: [],
-      friendCanGive: buildPossibilities(userMissing, friendRepeated),
+      userCanGive: buildPossibilities(friendMissing, userRepeated, "friend", "give"),
+      friendCanGive: buildPossibilities(userMissing, friendRepeated, "user", "receive"),
     };
   }
 
@@ -610,7 +615,7 @@ function renderSummary(parsed) {
   userGivesCount.textContent = parsed.trades.length;
   scoreboardLabel.textContent = possibilitiesMode ? "possibilidades encontradas" : "trocas possíveis";
   scoreboardDetail.textContent = possibilitiesMode
-    ? "faltam para você e estão repetidas com a pessoa"
+    ? "faltam para um lado e estão repetidas com o outro"
     : strategy === TRADE_STRATEGIES.DIRECT
       ? "priorizando brilhantes"
       : "conforme a estratégia selecionada";
@@ -657,7 +662,7 @@ function resultDescriptionText(strategy, pools, tradeCount) {
     [TRADE_STRATEGIES.SAME_NUMBER]: "Entram apenas pares da troca direta com a mesma numeração, mantendo FWC e CC dentro da própria família.",
     [TRADE_STRATEGIES.REPEATED]: "Você entrega repetidas que faltam para a pessoa e recebe repetidas dela que não aparecem na sua lista de repetidas. A seleção distribui as figurinhas entre países e dá mais espaço aos países com maiores quantidades repetidas.",
     [TRADE_STRATEGIES.BALANCED_REPEATED]: "Entram apenas sobras com quantidade 2 ou maior, trocadas por sobras que o outro lado não tem como repetida.",
-    [TRADE_STRATEGIES.POSSIBILITIES]: "Entram todas as figurinhas que faltam para você e estão na lista de repetidas da outra pessoa, sem exigir uma contrapartida.",
+    [TRADE_STRATEGIES.POSSIBILITIES]: "Entram todas as figurinhas que faltam para um lado e estão na lista de repetidas do outro, sem exigir uma contrapartida.",
     [TRADE_STRATEGIES.DIRECT]: "Primeiro são priorizadas trocas entre FWC, CC, número 1 e demais figurinhas; depois as candidatas restantes são pareadas livremente. Em ambas as etapas, a seleção é distribuída entre países.",
   }[strategy];
 
@@ -681,7 +686,7 @@ function resultDescriptionText(strategy, pools, tradeCount) {
 
 function noTradeReason(strategy, userCandidates, friendCandidates) {
   if (strategy === TRADE_STRATEGIES.POSSIBILITIES) {
-    return "Nenhuma figurinha repetida da outra pessoa também aparece na sua lista de faltantes.";
+    return "Nenhuma figurinha repetida de um lado também aparece na lista de faltantes do outro.";
   }
 
   if (userCandidates === 0 && friendCandidates === 0) {
@@ -750,8 +755,13 @@ function renderTrades(trades) {
   tradeRows.innerHTML = "";
   const possibilitiesMode = selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES;
   const hasIgnored = ignoredTradeStickers.size > 0;
-  tradeFooter.hidden = possibilitiesMode || (trades.length === 0 && !hasIgnored);
+  tradeFooter.hidden = trades.length === 0 && !hasIgnored;
   acceptTradeButton.hidden = trades.length === 0;
+  removePossibilitiesButton.hidden = !possibilitiesMode || trades.length === 0;
+  acceptTradeButton.textContent = possibilitiesMode ? "Remover das repetidas" : "Troca aceita";
+  acceptTradeButton.title = possibilitiesMode
+    ? "Remover das listas de repetidas todas as possibilidades exibidas"
+    : "Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas";
   renderIgnoredStickers();
   updateUndoButtons();
   renderTradeHeader(possibilitiesMode);
@@ -760,7 +770,7 @@ function renderTrades(trades) {
     renderEmptyResults(possibilitiesMode
       ? "Nenhuma possibilidade foi encontrada com estes dados."
       : "Nenhuma troca compatível foi encontrada com estes dados.");
-    if (hasIgnored && !possibilitiesMode) {
+    if (hasIgnored) {
       tableWrap.hidden = false;
     }
     return;
@@ -769,12 +779,23 @@ function renderTrades(trades) {
   emptyState.hidden = true;
   tableWrap.hidden = false;
 
+  let currentSeeker = "";
+  let possibilityIndex = 0;
   trades.forEach((trade, index) => {
     const row = document.createElement("tr");
     if (possibilitiesMode) {
+      if (trade.seeker !== currentSeeker) {
+        currentSeeker = trade.seeker;
+        possibilityIndex = 0;
+        const sectionRow = document.createElement("tr");
+        sectionRow.className = "possibility-section";
+        sectionRow.innerHTML = `<th colspan="3">${trade.seeker === "user" ? "Figurinhas que você procura" : "Figurinhas que a pessoa procura"}</th>`;
+        tradeRows.append(sectionRow);
+      }
+      possibilityIndex += 1;
       row.innerHTML = `
-        <td>${index + 1}</td>
-        <td>${renderSticker(trade.receive)}</td>
+        <td>${possibilityIndex}</td>
+        <td>${renderTradeSticker(trade.receive, trade.side)}</td>
         <td>${trade.quantity}</td>
       `;
       tradeRows.append(row);
@@ -794,7 +815,7 @@ function renderTrades(trades) {
 function renderTradeSticker(code, side) {
   return `
     ${renderSticker(code, `
-      <button class="remove-trade-sticker" type="button" data-ignore-code="${escapeHtml(code)}" data-ignore-side="${side}" title="Ignorar esta figurinha na proposta" aria-label="Ignorar ${escapeHtml(displayStickerCode(code))}">x</button>
+      <button class="remove-trade-sticker" type="button" data-ignore-code="${escapeHtml(code)}" data-ignore-side="${side}" title="Ignorar esta figurinha no resultado" aria-label="Ignorar ${escapeHtml(displayStickerCode(code))}">x</button>
     `)}
   `;
 }
@@ -810,7 +831,7 @@ function renderIgnoredStickers() {
       button.type = "button";
       button.dataset.restoreCode = code;
       button.dataset.restoreSide = side;
-      button.title = `${side === "give" ? "Você entrega" : "Pessoa entrega"}: voltar esta figurinha para a proposta`;
+      button.title = `${side === "give" ? "Você possui repetida" : "Pessoa possui repetida"}: voltar esta figurinha para o resultado`;
       button.textContent = displayStickerCode(code);
       ignoredStickers.append(button);
     });
@@ -830,10 +851,11 @@ function renderTradeHeader(possibilitiesMode) {
   tradeHeadRow.innerHTML = possibilitiesMode
     ? "<th>#</th><th>Figurinha disponível</th><th>Quantidade disponível</th>"
     : "<th>#</th><th>Você entrega</th><th>Pessoa entrega</th><th>Tipo</th>";
+  tradeFooter.querySelector("td").colSpan = possibilitiesMode ? 3 : 4;
 }
 
 function acceptTrade() {
-  if (currentTrades.length === 0 || selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES) return;
+  if (currentTrades.length === 0) return;
 
   acceptedTradeHistory.push({
     strategy: selectedStrategy(),
@@ -845,6 +867,11 @@ function acceptTrade() {
 
   const parsed = getParsedInputs();
 
+  if (selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES) {
+    removePossibilities(parsed, false);
+    return;
+  }
+
   currentTrades.forEach((trade) => {
     decrementRepeated(parsed.userRepeated, trade.give);
     receiveSticker(parsed.friendMissing, parsed.friendRepeated, trade.give);
@@ -852,12 +879,43 @@ function acceptTrade() {
     receiveSticker(parsed.userMissing, parsed.userRepeated, trade.receive);
   });
 
+  updateFieldsFromParsed(parsed);
+  ignoredTradeStickers.clear();
+  handleFormChanged();
+}
+
+function removePossibilitiesFromRepeatedAndMissing() {
+  if (currentTrades.length === 0 || selectedStrategy() !== TRADE_STRATEGIES.POSSIBILITIES) return;
+
+  acceptedTradeHistory.push({
+    strategy: selectedStrategy(),
+    values: Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.value])),
+  });
+  if (acceptedTradeHistory.length > MAX_UNDO_TRADES) {
+    acceptedTradeHistory.shift();
+  }
+
+  removePossibilities(getParsedInputs(), true);
+}
+
+function removePossibilities(parsed, removeMissing) {
+  currentTrades.forEach((possibility) => {
+    const repeated = possibility.side === "give" ? parsed.userRepeated : parsed.friendRepeated;
+    repeated.delete(possibility.receive);
+    if (removeMissing) {
+      const missing = possibility.seeker === "user" ? parsed.userMissing : parsed.friendMissing;
+      missing.delete(possibility.receive);
+    }
+  });
+  updateFieldsFromParsed(parsed);
+  handleFormChanged();
+}
+
+function updateFieldsFromParsed(parsed) {
   fields.userMissing.value = formatSelectionList(parsed.userMissing, "missing");
   fields.userRepeated.value = formatSelectionList(parsed.userRepeated, "repeated");
   fields.friendMissing.value = formatSelectionList(parsed.friendMissing, "missing");
   fields.friendRepeated.value = formatSelectionList(parsed.friendRepeated, "repeated");
-  ignoredTradeStickers.clear();
-  handleFormChanged();
 }
 
 function undoLastTrade() {
@@ -873,6 +931,15 @@ function undoLastTrade() {
 
 function updateUndoButtons(showInEmptyState = false) {
   const hasHistory = acceptedTradeHistory.length > 0;
+  const lastActionWasPossibilities = acceptedTradeHistory.at(-1)?.strategy === TRADE_STRATEGIES.POSSIBILITIES;
+  const label = lastActionWasPossibilities ? "Desfazer remoção" : "Desfazer última troca";
+  const title = lastActionWasPossibilities
+    ? "Restaurar as listas para o estado anterior à remoção"
+    : "Restaurar as listas para o estado anterior à última troca aceita; até cinco ações podem ser desfeitas";
+  undoTradeButton.textContent = label;
+  undoTradeButton.title = title;
+  undoTradeFooterButton.textContent = label;
+  undoTradeFooterButton.title = title;
   undoTradeButton.hidden = !hasHistory || !showInEmptyState;
   undoTradeFooterButton.hidden = !hasHistory;
 }
@@ -935,25 +1002,48 @@ function formatStickerForMessage(code) {
   return `${flag}${displayStickerCode(code)}${name}`;
 }
 
+function groupedPossibilitiesForMessage(possibilities) {
+  const groups = new Map();
+
+  possibilities.forEach(({ receive }) => {
+    const { prefix, number } = stickerInfo(receive);
+    if (!groups.has(prefix)) {
+      groups.set(prefix, []);
+    }
+    groups.get(prefix).push(prefix === "FWC" && number === 0 ? "00" : String(number));
+  });
+
+  return [...groups.entries()].map(([prefix, numbers]) => {
+    const flag = TEAM_BY_CODE[prefix]?.flag ? `${TEAM_BY_CODE[prefix].flag} ` : "";
+    return `${flag}${prefix}: ${numbers.join(", ")}`;
+  });
+}
+
+function appendPossibilityMessageSection(lines, title, description, possibilities) {
+  if (possibilities.length === 0) return;
+  if (lines.length > 0) lines.push("");
+  lines.push(`*${title} (${possibilities.length})*`, "", description(possibilities.length), "", "```", ...groupedPossibilitiesForMessage(possibilities), "```");
+}
+
 function buildWhatsAppText() {
   if (currentTrades.length === 0) {
     return "";
   }
 
   if (selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES) {
-    const lines = [
-      "*Figurinhas que estou procurando*",
-      "",
-      "Estas figurinhas faltam para mim e aparecem na sua lista de repetidas:",
-      "```",
-    ];
-
-    currentTrades.forEach((possibility, index) => {
-      const quantity = possibility.quantity > 1 ? ` (x${possibility.quantity})` : "";
-      lines.push(`${index + 1}. ${formatStickerForMessage(possibility.receive)}${quantity}`);
-    });
-
-    lines.push("```");
+    const lines = [];
+    appendPossibilityMessageSection(
+      lines,
+      "Figurinhas que estou procurando",
+      (count) => `Segue lista das ${count} figurinhas que estou procurando e você tem disponível para troca.`,
+      currentTrades.filter(({ seeker }) => seeker === "user"),
+    );
+    appendPossibilityMessageSection(
+      lines,
+      "Figurinhas que você está procurando",
+      (count) => `Segue lista das ${count} figurinhas que você está procurando e eu tenho disponível para troca.`,
+      currentTrades.filter(({ seeker }) => seeker === "friend"),
+    );
     return lines.join("\n");
   }
 
@@ -1039,7 +1129,7 @@ function encodeShareSection(items) {
   looseItems.forEach(({ code }) => loose.push(code));
 
   if (loose.length > 0) {
-    groups.push(`${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${loose.join(SHARE_GROUP_VALUE_SEPARATOR)}`);
+    groups.push(`${SHARE_LOOSE_GROUP_PREFIX}${loose.join(SHARE_GROUP_VALUE_SEPARATOR)}`);
   }
 
   return groups.join(SHARE_GROUP_SEPARATOR);
@@ -1107,7 +1197,7 @@ function encodeCompactSection(items) {
   looseItems.forEach(({ code }) => loose.push(code));
 
   if (loose.length > 0) {
-    groups.push(`${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${loose.join(SHARE_GROUP_VALUE_SEPARATOR)}`);
+    groups.push(`${SHARE_LOOSE_GROUP_PREFIX}${loose.join(SHARE_GROUP_VALUE_SEPARATOR)}`);
   }
 
   return groups.join(SHARE_GROUP_SEPARATOR);
@@ -1118,16 +1208,18 @@ function decodeCompactSection(section = "") {
   if (!section) return items;
 
   section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    if (decodeLooseShareGroup(group, items)) return;
+
     const parts = group.split(SHARE_GROUP_VALUE_SEPARATOR);
     const prefixToken = parts.shift();
-    if (prefixToken === SHARE_LOOSE_GROUP) {
+    const value = parts.join(SHARE_GROUP_VALUE_SEPARATOR);
+    if (prefixToken === SHARE_LOOSE_GROUP && !isCanonicalSparseShareValue(value)) {
       parts
         .filter(Boolean)
         .forEach((code) => addItem(items, code, 1));
       return;
     }
 
-    const value = parts.join(SHARE_GROUP_VALUE_SEPARATOR);
     const prefixIndex = Number.parseInt(prefixToken, 36);
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
@@ -1169,19 +1261,21 @@ function decodeShareSection(section = "") {
   const items = new Map();
 
   section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
+    if (decodeLooseShareGroup(group, items)) return;
+
     const isBitmapGroup = group.includes(SHARE_BITMAP_GROUP_SEPARATOR)
       && (!group.includes(SHARE_GROUP_VALUE_SEPARATOR) || group.indexOf(SHARE_BITMAP_GROUP_SEPARATOR) < group.indexOf(SHARE_GROUP_VALUE_SEPARATOR));
     const separator = isBitmapGroup ? SHARE_BITMAP_GROUP_SEPARATOR : SHARE_GROUP_VALUE_SEPARATOR;
     const parts = group.split(separator);
     const prefixToken = parts.shift();
-    if (prefixToken === SHARE_LOOSE_GROUP) {
+    const value = parts.join(separator);
+    if (prefixToken === SHARE_LOOSE_GROUP && !isBitmapGroup && !isCanonicalSparseShareValue(value)) {
       parts
         .filter(Boolean)
         .forEach((code) => addItem(items, code, 1));
       return;
     }
 
-    const value = parts.join(separator);
     const prefixIndex = Number.parseInt(prefixToken, 36);
     const prefix = CODE_PREFIXES[prefixIndex];
     if (!prefix || !value) return;
@@ -1302,6 +1396,23 @@ function shareTokens(value) {
   return tokens;
 }
 
+function isCanonicalSparseShareValue(value) {
+  if (!value || value.includes(SHARE_GROUP_VALUE_SEPARATOR)) return false;
+  const tokens = shareTokens(value);
+  return tokens.length > 0
+    && tokens.map(({ number, quantity }) => stickerToShareToken(number, quantity)).join("") === value;
+}
+
+function decodeLooseShareGroup(group, items) {
+  if (!group.startsWith(SHARE_LOOSE_GROUP_PREFIX)) return false;
+  group
+    .slice(SHARE_LOOSE_GROUP_PREFIX.length)
+    .split(SHARE_GROUP_VALUE_SEPARATOR)
+    .filter(Boolean)
+    .forEach((code) => addItem(items, code, 1));
+  return true;
+}
+
 function shareCharToNumber(char) {
   if (char === "0") return 0;
   const index = STICKER_NUMBER_CHARS.indexOf(char);
@@ -1368,7 +1479,7 @@ function whatsappStrategyText() {
     [TRADE_STRATEGIES.SAME_NUMBER]: "Nesta proposta combinei somente figurinhas com mesmo número.",
     [TRADE_STRATEGIES.REPEATED]: "Nesta proposta estou considerando troca de repetidas, distribuindo a seleção entre países e priorizando os que possuem maiores quantidades repetidas.",
     [TRADE_STRATEGIES.BALANCED_REPEATED]: "Nesta proposta estou considerando troca de repetidas balanceadas: cada pessoa entrega uma sobra que a outra não tem como repetida.",
-    [TRADE_STRATEGIES.POSSIBILITIES]: "Nesta lista estou considerando as figurinhas que faltam para mim e aparecem nas repetidas da outra pessoa.",
+    [TRADE_STRATEGIES.POSSIBILITIES]: "Nesta lista estou considerando as figurinhas que faltam para um lado e aparecem nas repetidas do outro.",
     [TRADE_STRATEGIES.DIRECT]: "Nesta proposta priorizei FWC, CC e número 1 entre seus grupos, distribuí a seleção entre países e completei as trocas restantes livremente.",
   }[selectedStrategy()];
 }
@@ -1494,7 +1605,7 @@ function renderStrategyIntro() {
   const possibilitiesMode = strategy === TRADE_STRATEGIES.POSSIBILITIES;
   scoreboardLabel.textContent = possibilitiesMode ? "possibilidades encontradas" : "trocas possíveis";
   scoreboardDetail.textContent = possibilitiesMode
-    ? "faltam para você e estão repetidas com a pessoa"
+    ? "faltam para um lado e estão repetidas com o outro"
     : "conforme a estratégia selecionada";
   tradeLegend.hidden = possibilitiesMode;
   copyWhatsAppButton.title = possibilitiesMode
@@ -1542,12 +1653,14 @@ function openHelpDialog() {
 function renderEmptyResults(message) {
   emptyState.hidden = false;
   emptyStateMessageElement.textContent = message;
-  updateUndoButtons(message === "Nenhuma troca compatível foi encontrada com estes dados.");
+  updateUndoButtons(message === "Nenhuma troca compatível foi encontrada com estes dados."
+    || selectedStrategy() === TRADE_STRATEGIES.POSSIBILITIES);
   tableWrap.hidden = true;
 }
 
 clearButton.addEventListener("click", clearComparison);
 acceptTradeButton.addEventListener("click", acceptTrade);
+removePossibilitiesButton.addEventListener("click", removePossibilitiesFromRepeatedAndMissing);
 undoTradeButton.addEventListener("click", undoLastTrade);
 undoTradeFooterButton.addEventListener("click", undoLastTrade);
 tradeRows.addEventListener("click", (event) => {

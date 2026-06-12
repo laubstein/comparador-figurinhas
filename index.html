@@ -200,6 +200,9 @@
                       <button id="undoTradeFooterButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>
                         Desfazer última troca
                       </button>
+                      <button id="removePossibilitiesButton" class="secondary" type="button" title="Remover das listas de repetidas e faltantes todas as possibilidades exibidas" hidden>
+                        Remover das repetidas e faltantes
+                      </button>
                       <button id="acceptTradeButton" type="button" title="Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas">
                         Troca aceita
                       </button>
@@ -240,12 +243,14 @@
           <p>
             Após concretizar uma proposta, use <strong>Troca aceita</strong> no rodapé da tabela. A aplicação descontará
             as figurinhas entregues das listas de repetidas e atualizará as faltantes ou repetidas de quem recebeu.
-            É possível desfazer as cinco últimas trocas aceitas durante a sessão. A lista de possibilidades não possui
-            esses botões porque não representa uma troca completa.
+            Na lista de possibilidades, use <strong>Remover das repetidas</strong> para retirar somente das listas de
+            repetidas, ou <strong>Remover das repetidas e faltantes</strong> para retirar as figurinhas exibidas das duas
+            listas correspondentes. É possível desfazer as cinco últimas ações durante a sessão.
           </p>
           <p>
-            Use o <strong>x</strong> ao lado de uma figurinha da proposta para ignorá-la e recalcular a troca sem ela.
-            As figurinhas ignoradas aparecem no rodapé da tabela; clique em uma delas para permitir sua participação novamente.
+            Use o <strong>x</strong> ao lado de uma figurinha do resultado para ignorá-la e recalcular a troca ou lista de
+            possibilidades sem ela. As figurinhas ignoradas aparecem no rodapé da tabela; clique em uma delas para permitir
+            sua participação novamente.
           </p>
 
           <section id="strategyHelp" class="help-section" tabindex="-1">
@@ -280,9 +285,8 @@
               aparece no máximo uma vez na proposta.
             </p>
             <p>
-              <strong>Possibilidades:</strong> considera somente suas faltantes e as repetidas da outra pessoa. Exibe tudo
-              que ela possui repetido e está faltando para você, sem exigir sua lista de repetidas e sem montar uma troca
-              com contrapartida.
+              <strong>Possibilidades:</strong> cruza as faltantes de cada pessoa com as repetidas da outra. Exibe em seções
+              separadas tudo que um lado possui repetido e está faltando para o outro, sem montar uma troca com contrapartida.
             </p>
           </section>
 

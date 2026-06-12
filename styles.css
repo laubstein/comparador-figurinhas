@@ -573,6 +573,13 @@ th {
   background: #edf3fa;
 }
 
+.possibility-section th {
+  color: var(--field);
+  font-size: 0.86rem;
+  background: #f4f8f6;
+  border-top: 2px solid var(--line);
+}
+
 tr:last-child td {
   border-bottom: 0;
 }
@@ -597,6 +604,11 @@ tfoot td {
   gap: 8px;
 }
 
+.trade-footer-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .ignored-stickers {
   flex: 1 1 auto;
   min-width: 0;
@@ -613,7 +625,8 @@ tfoot td {
   border: 1px solid #cbd7e8;
 }
 
-#acceptTradeButton {
+#acceptTradeButton,
+#removePossibilitiesButton {
   min-height: 38px;
   padding: 0 16px;
 }
