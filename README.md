@@ -4,11 +4,11 @@
 
 # Comparador de figurinhas da Copa 2026
 
-> **Use o site aqui: [laubstein.github.io/comparador-figurinhas](https://laubstein.github.io/comparador-figurinhas/)**
+> **Use o site aqui: [laubstein.github.io/comparador-figurinhas](https://laubstein.github.io/comparador-figurinhas/?utm_source=github&utm_medium=readme&utm_campaign=comparador_figurinhas)**
 
 Sabe aquele momento em que duas pessoas abrem listas enormes de faltantes e repetidas, alguém fala "acho que dá jogo", e cinco minutos depois ninguém sabe mais quem entrega o quê? Este projeto existe para cortar essa parte chata.
 
-Cole as figurinhas faltando e repetidas de cada pessoa, escolha uma estratégia e o comparador monta uma proposta de troca ou uma lista de possibilidades. Tudo roda no navegador, sem login, sem backend e sem coletar dados.
+Cole as figurinhas faltando e repetidas de cada pessoa, escolha uma estratégia e o comparador monta uma proposta de troca ou uma lista de possibilidades. Tudo roda no navegador, sem login e sem backend.
 
 ## O que dá para fazer
 
@@ -41,4 +41,4 @@ git diff --check
 
 ## Privacidade
 
-O projeto não tem servidor próprio e não coleta dados. O que você cola no app fica no navegador; ao compartilhar, os dados necessários vão codificados no link.
+O projeto não tem servidor próprio e não coleta os dados das listas. O que você cola no app fica no navegador; ao compartilhar, os dados necessários vão codificados no link. O site usa [Umami](https://umami.is/) para estatísticas anônimas de acesso.

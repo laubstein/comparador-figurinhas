@@ -6,6 +6,7 @@ const SHARE_BITMAP_GROUP_SEPARATOR = ".";
 const SHARE_LOOSE_GROUP = "x";
 const SHARE_LOOSE_GROUP_PREFIX = `${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${SHARE_GROUP_VALUE_SEPARATOR}`;
 const SHARE_V2_PREFIX = "2:";
+const UTM_CAMPAIGN = "comparador_figurinhas";
 const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
 const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -224,6 +225,9 @@ function syncBackLink() {
 
   const url = new URL("./", window.location.href);
   url.searchParams.set(SHARE_PARAM, encoded);
+  url.searchParams.set("utm_source", "tabela");
+  url.searchParams.set("utm_medium", "back_link");
+  url.searchParams.set("utm_campaign", UTM_CAMPAIGN);
   backToComparator.href = url.toString();
 }
 

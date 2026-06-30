@@ -90,6 +90,7 @@ const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
 const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COPY_WHATSAPP_LABEL = "Copiar para WhatsApp";
 const SHARE_COMPARISON_LABEL = "Compartilhar Comparação";
+const UTM_CAMPAIGN = "comparador_figurinhas";
 const FEEDBACK_TIMEOUT_MS = 1800;
 let urlSyncTimer = null;
 
@@ -1066,14 +1067,24 @@ function buildWhatsAppText() {
   return lines.join("\n");
 }
 
-function buildShareUrl() {
+function addUtmParams(url, source, medium) {
+  url.searchParams.set("utm_source", source);
+  url.searchParams.set("utm_medium", medium);
+  url.searchParams.set("utm_campaign", UTM_CAMPAIGN);
+  return url;
+}
+
+function buildShareUrl(source = "", medium = "") {
   const payload = buildSharePayload();
   const url = new URL(window.location.href);
 
+  url.search = "";
   if (payload) {
-    url.search = `${SHARE_PARAM}=${payload}`;
+    url.searchParams.set(SHARE_PARAM, payload);
+  }
+  if (source && medium) {
+    addUtmParams(url, source, medium);
   } else {
-    url.search = "";
   }
 
   return url.toString();
@@ -1502,7 +1513,7 @@ async function copyWhatsAppText() {
 }
 
 async function shareComparison() {
-  const url = buildShareUrl();
+  const url = buildShareUrl("comparador", "share_link");
 
   try {
     await copyText(url);
@@ -1528,6 +1539,7 @@ function openUserTable() {
   if (payload) {
     url.searchParams.set(SHARE_PARAM, payload);
   }
+  addUtmParams(url, "comparador", "tabela");
 
   window.open(url.toString(), "_blank", "noopener");
 }
