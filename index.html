@@ -174,6 +174,17 @@
           </div>
         </div>
 
+        <div id="possibilityNumberFilter" class="possibility-number-filter" hidden>
+          <div class="pnf-field">
+            <label for="possibilityNumberInput">Ignorar número nas possibilidades</label>
+            <div class="pnf-row">
+              <input id="possibilityNumberInput" type="number" min="0" max="20" inputmode="numeric" placeholder="Ex.: 1" />
+              <button id="ignorePossibilityNumberButton" class="secondary" type="button" title="Remover das possibilidades todas as figurinhas com este número (ex.: 1 remove ALG1, ARG1, ...)">Ignorar número</button>
+            </div>
+          </div>
+          <div id="ignoredNumbers" class="ignored-numbers" aria-label="Números ignorados nas possibilidades"></div>
+        </div>
+
         <div id="emptyState" class="empty-state">
           <p id="emptyStateMessage">Informe os dados e escolha uma estratégia de troca.</p>
           <button id="undoTradeButton" class="secondary" type="button" title="Restaurar as listas para o estado anterior à última troca aceita; até cinco trocas podem ser desfeitas" hidden>

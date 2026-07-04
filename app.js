@@ -27,6 +27,10 @@ const tradeFooter = document.querySelector("#tradeFooter");
 const acceptTradeButton = document.querySelector("#acceptTradeButton");
 const removePossibilitiesButton = document.querySelector("#removePossibilitiesButton");
 const ignoredStickers = document.querySelector("#ignoredStickers");
+const possibilityNumberFilter = document.querySelector("#possibilityNumberFilter");
+const possibilityNumberInput = document.querySelector("#possibilityNumberInput");
+const ignorePossibilityNumberButton = document.querySelector("#ignorePossibilityNumberButton");
+const ignoredNumbers = document.querySelector("#ignoredNumbers");
 const emptyState = document.querySelector("#emptyState");
 const emptyStateMessageElement = document.querySelector("#emptyStateMessage");
 const undoTradeButton = document.querySelector("#undoTradeButton");
@@ -42,7 +46,8 @@ const tradeStickerTooltip = document.querySelector("#tradeStickerTooltip");
 const selectionLineSimple = /(?:^|\s)([A-Z]{2,4})\s*-\s*((?:\d|00).*)$/;
 const selectionLineDecorated = /(?:^|\s)([A-Z]{2,4})\b[^:,-]*:\s*((?:\d|00).*)$/;
 const selectionLineSpaced = /(?:^|\s)([A-Z]{2,4})\s+((?:\d|00).*)$/;
-const codedSticker = /\b([A-Z]{2,4})([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
+const codedSticker = /\b([A-Z]{2,4})\s*([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
+const inlineCodedSticker = /\b([A-Z]{2,4})\s+([0-9]{1,2})\b/g;
 const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
 const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const { TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
@@ -52,6 +57,7 @@ const CODE_PREFIX_INDEX = Object.fromEntries(CODE_PREFIXES.map((prefix, index) =
 const IGNORED_CODES = new Set(["BRON", "OURO", "PRAT", "REGU"]);
 let currentTrades = [];
 const ignoredTradeStickers = new Map();
+const ignoredPossibilityNumbers = new Set();
 let hasCompared = false;
 const acceptedTradeHistory = [];
 const MAX_UNDO_TRADES = 5;
@@ -122,12 +128,14 @@ function parseList(rawText, mode) {
     .toUpperCase();
 
   text.split(/\r?\n/).forEach((line) => {
-    const selectionLine = parseSelectionLine(line);
-    if (selectionLine) {
-      selectionLine.stickers.forEach(({ number, quantity }) => {
-        addItem(items, stickerCode(selectionLine.prefix, number), mode === "repeated" ? quantity : 1);
-      });
-      return;
+    if (!isInlineCodedList(line)) {
+      const selectionLine = parseSelectionLine(line);
+      if (selectionLine) {
+        selectionLine.stickers.forEach(({ number, quantity }) => {
+          addItem(items, stickerCode(selectionLine.prefix, number), mode === "repeated" ? quantity : 1);
+        });
+        return;
+      }
     }
 
     for (const match of line.matchAll(codedSticker)) {
@@ -146,6 +154,20 @@ function parseList(rawText, mode) {
   });
 
   return items;
+}
+
+// Formato "inline": vários países numa linha só, cada cromo prefixado pelo código
+// (ex.: "Duplicados: Mexico: MEX 3, MEX 5, MEX 7... South Africa: RSA 2..."). Nesse caso
+// não deixamos parseSelectionLine sequestrar a linha; cada "COD N" vira um cromo.
+function isInlineCodedList(line) {
+  const seen = new Set();
+  for (const match of line.matchAll(inlineCodedSticker)) {
+    const prefix = normalizePrefix(match[1]);
+    if (!TEAM_BY_CODE[prefix]) continue;
+    seen.add(prefix);
+    if (seen.size >= 2) return true;
+  }
+  return false;
 }
 
 function parseSelectionLine(line) {
@@ -413,6 +435,7 @@ function buildPossibilities(missing, repeated, seeker, side) {
 
   repeated.forEach((quantity, code) => {
     if (!missing.has(code) || quantity < 1) return;
+    if (ignoredPossibilityNumbers.has(stickerInfo(code).number)) return;
     possibilities.push({ receive: code, quantity, possibility: true, seeker, side });
   });
 
@@ -764,6 +787,8 @@ function renderTrades(trades) {
     ? "Remover das listas de repetidas todas as possibilidades exibidas"
     : "Confirmar que a troca foi realizada e atualizar as listas de faltantes e repetidas das duas pessoas";
   renderIgnoredStickers();
+  possibilityNumberFilter.hidden = !possibilitiesMode;
+  renderIgnoredNumbers();
   updateUndoButtons();
   renderTradeHeader(possibilitiesMode);
 
@@ -845,6 +870,34 @@ function ignoreTradeSticker(code, side) {
 
 function restoreTradeSticker(code, side) {
   ignoredTradeStickers.delete(`${side}:${code}`);
+  compare();
+}
+
+function renderIgnoredNumbers() {
+  ignoredNumbers.innerHTML = "";
+
+  [...ignoredPossibilityNumbers]
+    .sort((a, b) => a - b)
+    .forEach((number) => {
+      const button = document.createElement("button");
+      button.className = "ignored-sticker";
+      button.type = "button";
+      button.dataset.restoreNumber = String(number);
+      button.title = "Voltar este número para as possibilidades";
+      button.textContent = `Nº ${number} ✕`;
+      ignoredNumbers.append(button);
+    });
+}
+
+function ignorePossibilityNumber(number) {
+  if (!Number.isInteger(number) || number < 0) return;
+  ignoredPossibilityNumbers.add(number);
+  possibilityNumberInput.value = "";
+  compare();
+}
+
+function restorePossibilityNumber(number) {
+  ignoredPossibilityNumbers.delete(number);
   compare();
 }
 
@@ -1705,6 +1758,22 @@ ignoredStickers.addEventListener("click", (event) => {
   const button = event.target.closest("[data-restore-code][data-restore-side]");
   if (!button) return;
   restoreTradeSticker(button.dataset.restoreCode, button.dataset.restoreSide);
+});
+function submitPossibilityNumber() {
+  const raw = possibilityNumberInput.value.trim();
+  if (raw === "") return;
+  ignorePossibilityNumber(Number(raw));
+}
+ignorePossibilityNumberButton.addEventListener("click", submitPossibilityNumber);
+possibilityNumberInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  submitPossibilityNumber();
+});
+ignoredNumbers.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-restore-number]");
+  if (!button) return;
+  restorePossibilityNumber(Number(button.dataset.restoreNumber));
 });
 tableButton.addEventListener("click", openUserTable);
 swapCollectorsButton.addEventListener("click", swapCollectors);

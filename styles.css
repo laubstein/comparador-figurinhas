@@ -625,6 +625,59 @@ tfoot td {
   border: 1px solid #cbd7e8;
 }
 
+.possibility-number-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.pnf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pnf-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pnf-row {
+  display: flex;
+  gap: 8px;
+}
+
+.pnf-row input {
+  width: 96px;
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.pnf-row button {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.ignored-numbers {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 #acceptTradeButton,
 #removePossibilitiesButton {
   min-height: 38px;
