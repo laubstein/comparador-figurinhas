@@ -65,7 +65,9 @@
         <article class="collector-panel">
           <div class="panel-heading">
             <div class="panel-title">
-              <span class="badge badge-home">Você</span>
+              <span class="badge badge-home" id="userBadge">Você</span>
+              <input class="badge-name-input" id="userBadgeInput" type="text" maxlength="24" hidden aria-label="Nome do primeiro colecionador" />
+              <button class="badge-edit" id="userBadgeEdit" type="button" title="Editar nome" aria-label="Editar nome do primeiro colecionador">✎</button>
               <h2>Suas figurinhas</h2>
             </div>
             <div class="format-actions" aria-label="Converter suas figurinhas">
@@ -84,7 +86,9 @@
         <article class="collector-panel">
           <div class="panel-heading">
             <div class="panel-title">
-              <span class="badge badge-away">Pessoa</span>
+              <span class="badge badge-away" id="friendBadge">Pessoa</span>
+              <input class="badge-name-input" id="friendBadgeInput" type="text" maxlength="24" hidden aria-label="Nome do segundo colecionador" />
+              <button class="badge-edit" id="friendBadgeEdit" type="button" title="Editar nome" aria-label="Editar nome do segundo colecionador">✎</button>
               <h2>Figurinhas da outra pessoa</h2>
             </div>
             <div class="format-actions" aria-label="Converter figurinhas da outra pessoa">

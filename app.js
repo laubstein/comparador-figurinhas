@@ -27,6 +27,18 @@ const tradeFooter = document.querySelector("#tradeFooter");
 const acceptTradeButton = document.querySelector("#acceptTradeButton");
 const removePossibilitiesButton = document.querySelector("#removePossibilitiesButton");
 const ignoredStickers = document.querySelector("#ignoredStickers");
+const badgeEls = {
+  user: {
+    badge: document.querySelector("#userBadge"),
+    input: document.querySelector("#userBadgeInput"),
+    edit: document.querySelector("#userBadgeEdit"),
+  },
+  friend: {
+    badge: document.querySelector("#friendBadge"),
+    input: document.querySelector("#friendBadgeInput"),
+    edit: document.querySelector("#friendBadgeEdit"),
+  },
+};
 const possibilityNumberFilter = document.querySelector("#possibilityNumberFilter");
 const possibilityNumberInput = document.querySelector("#possibilityNumberInput");
 const ignorePossibilityNumberButton = document.querySelector("#ignorePossibilityNumberButton");
@@ -84,6 +96,10 @@ const TRADE_KIND_LABELS = {
   [TRADE_KINDS.FREE]: "Livre",
 };
 const SHARE_PARAM = "c";
+const DEFAULT_COLLECTOR_NAMES = { user: "Você", friend: "Pessoa" };
+const COLLECTOR_NAME_PARAM = { user: "un", friend: "pn" };
+const MAX_COLLECTOR_NAME_LENGTH = 24;
+const collectorNames = { ...DEFAULT_COLLECTOR_NAMES };
 const SHARE_SECTION_SEPARATOR = "~";
 const SHARE_GROUP_SEPARATOR = "-";
 const SHARE_GROUP_VALUE_SEPARATOR = "_";
@@ -125,7 +141,10 @@ function parseList(rawText, mode) {
   const text = rawText
     .normalize("NFKC")
     .replace(/\bFCW\b/g, "FWC")
-    .toUpperCase();
+    .toUpperCase()
+    // Descarta cromos Coca-Cola regionais (CC-US1, CC-LAM14, CCSRB6...) que não
+    // fazem parte do álbum aqui modelado; evita colisão com times como ESP (CC-ESP1).
+    .replace(/\bCC-?[A-Z]{2,3}[0-9]{1,2}\b/g, " ");
 
   text.split(/\r?\n/).forEach((line) => {
     if (!isInlineCodedList(line)) {
@@ -648,8 +667,8 @@ function renderSummary(parsed) {
     ? "Copiar lista abaixo para ser enviada por WhatsApp"
     : "Copiar proposta abaixo para ser enviada por WhatsApp";
   parseSummary.textContent = [
-    `Você: ${parsed.userMissing.size} faltando, ${totalQuantity(parsed.userRepeated)} repetidas`,
-    `Pessoa: ${parsed.friendMissing.size} faltando, ${totalQuantity(parsed.friendRepeated)} repetidas`,
+    `${collectorName("user")}: ${parsed.userMissing.size} faltando, ${totalQuantity(parsed.userRepeated)} repetidas`,
+    `${collectorName("friend")}: ${parsed.friendMissing.size} faltando, ${totalQuantity(parsed.friendRepeated)} repetidas`,
   ].join(" | ");
 
   renderResultContext(parsed);
@@ -759,8 +778,8 @@ function renderImpactSummary(parsed) {
 
   impactSummary.hidden = false;
   impactSummary.innerHTML = [
-    `Status após a troca: Você: ${userMissingAfter} faltando, ${userRepeatedAfter} repetidas`,
-    `Pessoa: ${friendMissingAfter} faltando, ${friendRepeatedAfter} repetidas`,
+    `Status após a troca: ${escapeHtml(collectorName("user"))}: ${userMissingAfter} faltando, ${userRepeatedAfter} repetidas`,
+    `${escapeHtml(collectorName("friend"))}: ${friendMissingAfter} faltando, ${friendRepeatedAfter} repetidas`,
   ].join(" | ");
 }
 
@@ -815,7 +834,7 @@ function renderTrades(trades) {
         possibilityIndex = 0;
         const sectionRow = document.createElement("tr");
         sectionRow.className = "possibility-section";
-        sectionRow.innerHTML = `<th colspan="3">${trade.seeker === "user" ? "Figurinhas que você procura" : "Figurinhas que a pessoa procura"}</th>`;
+        sectionRow.innerHTML = `<th colspan="3">Figurinhas que ${escapeHtml(collectorName(trade.seeker === "user" ? "user" : "friend"))} procura</th>`;
         tradeRows.append(sectionRow);
       }
       possibilityIndex += 1;
@@ -857,7 +876,7 @@ function renderIgnoredStickers() {
       button.type = "button";
       button.dataset.restoreCode = code;
       button.dataset.restoreSide = side;
-      button.title = `${side === "give" ? "Você possui repetida" : "Pessoa possui repetida"}: voltar esta figurinha para o resultado`;
+      button.title = `${side === "give" ? collectorName("user") : collectorName("friend")} possui repetida: voltar esta figurinha para o resultado`;
       button.textContent = displayStickerCode(code);
       ignoredStickers.append(button);
     });
@@ -901,10 +920,66 @@ function restorePossibilityNumber(number) {
   compare();
 }
 
+function sanitizeCollectorName(value) {
+  return String(value ?? "").replace(/[\r\n\t]+/g, " ").trim().slice(0, MAX_COLLECTOR_NAME_LENGTH);
+}
+
+function collectorName(side) {
+  return collectorNames[side] || DEFAULT_COLLECTOR_NAMES[side];
+}
+
+function renderCollectorNames() {
+  badgeEls.user.badge.textContent = collectorName("user");
+  badgeEls.friend.badge.textContent = collectorName("friend");
+}
+
+function setCollectorName(side, rawName) {
+  const name = sanitizeCollectorName(rawName) || DEFAULT_COLLECTOR_NAMES[side];
+  const changed = collectorNames[side] !== name;
+  collectorNames[side] = name;
+  renderCollectorNames();
+  if (!changed) return;
+  if (hasFormData()) {
+    compare();
+  } else {
+    syncUrlNow();
+  }
+}
+
+function startEditCollectorName(side) {
+  const { badge, input, edit } = badgeEls[side];
+  input.value = collectorName(side);
+  badge.hidden = true;
+  edit.hidden = true;
+  input.hidden = false;
+  input.focus();
+  input.select();
+}
+
+function finishEditCollectorName(side, commit) {
+  const { badge, input, edit } = badgeEls[side];
+  if (input.hidden) return;
+  input.hidden = true;
+  badge.hidden = false;
+  edit.hidden = false;
+  if (commit) setCollectorName(side, input.value);
+}
+
+function loadCollectorNames() {
+  const params = new URLSearchParams(window.location.search);
+  ["user", "friend"].forEach((side) => {
+    const raw = params.get(COLLECTOR_NAME_PARAM[side]);
+    if (raw == null) return;
+    const name = sanitizeCollectorName(raw);
+    if (name) collectorNames[side] = name;
+  });
+  renderCollectorNames();
+}
+
 function renderTradeHeader(possibilitiesMode) {
   tradeHeadRow.innerHTML = possibilitiesMode
     ? "<th>#</th><th>Figurinha disponível</th><th>Quantidade disponível</th>"
-    : "<th>#</th><th>Você entrega</th><th>Pessoa entrega</th><th>Tipo</th>";
+    : `<th>#</th><th>${escapeHtml(collectorName("user"))} entrega</th><th>${escapeHtml(collectorName("friend"))} entrega</th><th>Tipo</th>`;
   tradeFooter.querySelector("td").colSpan = possibilitiesMode ? 3 : 4;
 }
 
@@ -1088,14 +1163,14 @@ function buildWhatsAppText() {
     const lines = [];
     appendPossibilityMessageSection(
       lines,
-      "Figurinhas que estou procurando",
-      (count) => `Segue lista das ${count} figurinhas que estou procurando e você tem disponível para troca.`,
+      `Figurinhas que ${collectorName("user")} procura`,
+      (count) => `Segue lista das ${count} figurinhas que ${collectorName("user")} procura e ${collectorName("friend")} tem disponível para troca.`,
       currentTrades.filter(({ seeker }) => seeker === "user"),
     );
     appendPossibilityMessageSection(
       lines,
-      "Figurinhas que você está procurando",
-      (count) => `Segue lista das ${count} figurinhas que você está procurando e eu tenho disponível para troca.`,
+      `Figurinhas que ${collectorName("friend")} procura`,
+      (count) => `Segue lista das ${count} figurinhas que ${collectorName("friend")} procura e ${collectorName("user")} tem disponível para troca.`,
       currentTrades.filter(({ seeker }) => seeker === "friend"),
     );
     return lines.join("\n");
@@ -1106,7 +1181,7 @@ function buildWhatsAppText() {
     "",
     whatsappStrategyText(),
     "",
-    "Eu entrego -> Você entrega",
+    `${collectorName("user")} entrega -> ${collectorName("friend")} entrega`,
     "```",
   ];
 
@@ -1135,6 +1210,11 @@ function buildShareUrl(source = "", medium = "") {
   if (payload) {
     url.searchParams.set(SHARE_PARAM, payload);
   }
+  ["user", "friend"].forEach((side) => {
+    if (collectorNames[side] !== DEFAULT_COLLECTOR_NAMES[side]) {
+      url.searchParams.set(COLLECTOR_NAME_PARAM[side], collectorNames[side]);
+    }
+  });
   if (source && medium) {
     addUtmParams(url, source, medium);
   } else {
@@ -1826,6 +1906,22 @@ document.addEventListener("click", (event) => {
   hideTradeStickerTooltip();
 });
 
+["user", "friend"].forEach((side) => {
+  const { input, edit } = badgeEls[side];
+  edit.addEventListener("click", () => startEditCollectorName(side));
+  input.addEventListener("blur", () => finishEditCollectorName(side, true));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finishEditCollectorName(side, true);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      finishEditCollectorName(side, false);
+    }
+  });
+});
+
 renderStrategyIntro();
 renderEmptyResults(emptyStateMessage());
+loadCollectorNames();
 loadSharedComparison();
