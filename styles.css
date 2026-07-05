@@ -291,8 +291,8 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   color: var(--muted);
   font-size: 0.95rem;
@@ -685,6 +685,7 @@ tfoot td {
 
 .pnf-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -740,7 +741,7 @@ tfoot td {
 }
 
 .sticker:has(.remove-trade-sticker) {
-  padding-right: 29px;
+  padding-right: 33px;
 }
 
 .sticker-flag {
@@ -759,12 +760,12 @@ tfoot td {
   position: absolute;
   top: 2px;
   right: 2px;
-  width: 18px;
-  min-width: 18px;
-  min-height: 18px;
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
   padding: 0;
   color: #6b2630;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   line-height: 1;
   background: #fce8eb;
   border: 1px solid #e7b9c0;
@@ -1227,6 +1228,204 @@ tfoot td {
   .site-bar {
     display: grid;
     justify-content: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .scoreboard {
+    min-width: 0;
+    aspect-ratio: auto;
+    padding: 12px 18px;
+  }
+
+  .scoreboard span {
+    font-size: 2.4rem;
+  }
+
+  .collector-panel {
+    grid-template-rows: auto auto minmax(140px, 1fr) auto minmax(140px, 1fr);
+    min-height: auto;
+  }
+
+  textarea {
+    min-height: 140px;
+    font-size: 1rem;
+  }
+
+  .pnf-row input,
+  .badge-name-input {
+    font-size: 1rem;
+  }
+
+  .help-icon-button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .mini-button {
+    min-height: 40px;
+  }
+
+  .strategy-options label,
+  .strategy-options span {
+    min-height: 44px;
+  }
+
+  .sticker {
+    min-height: 34px;
+  }
+
+  #acceptTradeButton,
+  #removePossibilitiesButton,
+  #undoTradeFooterButton,
+  .pnf-row button {
+    min-height: 44px;
+  }
+
+  /* Tabela de trocas vira cards empilhados; os rótulos vêm dos data-label
+     escritos pelo render (mesma fonte do thead). Não afeta a tabela do álbum
+     (.album-table-wrap). */
+  .table-wrap {
+    overflow-x: visible;
+    border: 0;
+  }
+
+  .table-wrap table {
+    display: block;
+    min-width: 0;
+    background: none;
+  }
+
+  .table-wrap thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .table-wrap tbody,
+  .table-wrap tfoot,
+  .table-wrap tr,
+  .table-wrap th,
+  .table-wrap td {
+    display: block;
+  }
+
+  .table-wrap tbody tr {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .table-wrap td {
+    padding: 6px 2px;
+    border-bottom: 0;
+  }
+
+  .table-wrap td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: #344054;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .table-wrap td.trade-index {
+    float: right;
+    padding: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .table-wrap tr.possibility-section {
+    margin-bottom: 10px;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .table-wrap tr.possibility-section th {
+    border-bottom: 0;
+    border-radius: 8px;
+  }
+
+  .table-wrap tfoot td {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .trade-footer-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trade-footer-actions {
+    justify-content: stretch;
+  }
+
+  .trade-footer-actions button {
+    flex: 1 1 auto;
+  }
+
+  /* Footer deixa de ser fixo: o texto longo não cobre conteúdo nem tooltip. */
+  body {
+    padding-bottom: 0;
+  }
+
+  .privacy-footer {
+    position: static;
+  }
+
+  /* Página da tabela: cabeçalho empilha; a grade mantém scroll horizontal. */
+  .table-page-header {
+    padding: 16px;
+  }
+
+  .table-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .table-title-row h1 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    width: calc(100% - 12px);
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 8vw, 2.1rem);
+  }
+
+  .scoreboard span {
+    font-size: 2rem;
+  }
+
+  .table-wrap tbody tr {
+    padding: 8px 10px;
+  }
+
+  .privacy-footer {
+    font-size: 0.76rem;
   }
 }
 

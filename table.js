@@ -202,7 +202,12 @@ function showStickerTooltip(cell) {
   stickerTooltip.hidden = false;
   const left = rect.left + (rect.width / 2) - (stickerTooltip.offsetWidth / 2);
   stickerTooltip.style.left = `${Math.max(8, Math.min(left, window.innerWidth - stickerTooltip.offsetWidth - 8))}px`;
-  stickerTooltip.style.top = `${rect.bottom + 8}px`;
+  // Sem espaço abaixo (fim da viewport/rodapé), o tooltip abre acima.
+  const below = rect.bottom + 8;
+  const top = below + stickerTooltip.offsetHeight > window.innerHeight - 8
+    ? Math.max(8, rect.top - 8 - stickerTooltip.offsetHeight)
+    : below;
+  stickerTooltip.style.top = `${top}px`;
 }
 
 function hideStickerTooltip() {
