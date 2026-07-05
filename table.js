@@ -1,23 +1,10 @@
-const SHARE_PARAM = "c";
-const SHARE_SECTION_SEPARATOR = "~";
-const SHARE_GROUP_SEPARATOR = "-";
-const SHARE_GROUP_VALUE_SEPARATOR = "_";
-const SHARE_BITMAP_GROUP_SEPARATOR = ".";
-const SHARE_LOOSE_GROUP = "x";
-const SHARE_LOOSE_GROUP_PREFIX = `${SHARE_LOOSE_GROUP}${SHARE_GROUP_VALUE_SEPARATOR}${SHARE_GROUP_VALUE_SEPARATOR}`;
-const SHARE_V2_PREFIX = "2:";
-const UTM_CAMPAIGN = "comparador_figurinhas";
-const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-const STICKER_NUMBER_CHARS = "abcdefghijklmnopqrst";
-const SHARE_QUANTITY_CHARS = "23456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const { SHARE_PARAM, UTM_CAMPAIGN, decodeSharePayload, codeSet } = window.SHARE_CODEC;
 const STICKERS_PER_TEAM = 20;
 const { TEAMS: ALL_TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
 const TEAMS = ALL_TEAMS.filter(({ code }) => code !== "FWC" && code !== "CC");
 const FWC_TEAM = ALL_TEAMS.find(({ code }) => code === "FWC");
 const ALBUM_ROWS = [...TEAMS, FWC_TEAM];
 const ALBUM_ROW_BY_CODE = Object.fromEntries(ALBUM_ROWS.map((row) => [row.code, row]));
-
-const CODE_PREFIXES = ALL_TEAMS.map(({ code }) => code);
 
 const tableHead = document.querySelector("#albumTableHead");
 const tableBody = document.querySelector("#albumTableBody");
@@ -36,173 +23,12 @@ function decodeSharedData() {
 
   const { userMissing, userRepeated } = decodeSharePayload(encoded);
   return {
-    userMissing,
-    userRepeated,
+    userMissing: codeSet(userMissing),
+    userRepeated: codeSet(userRepeated),
     hasData: userMissing.size > 0 || userRepeated.size > 0,
   };
 }
 
-function decodeSharePayload(encoded) {
-  if (encoded.startsWith(SHARE_V2_PREFIX)) {
-    const [, userMissing = "", userRepeated = ""] = encoded
-      .slice(SHARE_V2_PREFIX.length)
-      .split(SHARE_SECTION_SEPARATOR);
-
-    return {
-      userMissing: decodeShareSection(userMissing),
-      userRepeated: decodeShareSection(userRepeated),
-    };
-  }
-
-  const [, userMissing = "", userRepeated = ""] = encoded.split(SHARE_SECTION_SEPARATOR);
-  return {
-    userMissing: decodeCompactSection(userMissing),
-    userRepeated: decodeCompactSection(userRepeated),
-  };
-}
-
-function decodeShareSection(section = "") {
-  if (!section) return new Set();
-  const items = new Set();
-
-  section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
-    if (decodeLooseShareGroup(group, items)) return;
-
-    const isBitmapGroup = group.includes(SHARE_BITMAP_GROUP_SEPARATOR)
-      && (!group.includes(SHARE_GROUP_VALUE_SEPARATOR) || group.indexOf(SHARE_BITMAP_GROUP_SEPARATOR) < group.indexOf(SHARE_GROUP_VALUE_SEPARATOR));
-    const separator = isBitmapGroup ? SHARE_BITMAP_GROUP_SEPARATOR : SHARE_GROUP_VALUE_SEPARATOR;
-    const parts = group.split(separator);
-    const prefixToken = parts.shift();
-    const value = parts.join(separator);
-    if (prefixToken === SHARE_LOOSE_GROUP && !isBitmapGroup && !isCanonicalSparseShareValue(value)) {
-      parts.filter(Boolean).forEach((code) => items.add(code));
-      return;
-    }
-
-    const prefixIndex = Number.parseInt(prefixToken, 36);
-    const prefix = CODE_PREFIXES[prefixIndex];
-    if (!prefix || !value) return;
-
-    decodeShareGroup(value, prefix, isBitmapGroup).forEach((number) => {
-      items.add(`${prefix}${number}`);
-    });
-  });
-
-  return items;
-}
-
-function decodeShareGroup(value, prefix, isBitmapGroup) {
-  if (isBitmapGroup) {
-    return decodeBitmapGroup(value, prefix);
-  }
-  return shareNumbers(value);
-}
-
-function decodeBitmapGroup(value, prefix) {
-  const [encodedBytes = ""] = value.split(SHARE_BITMAP_GROUP_SEPARATOR);
-  const numbers = [];
-  const mask = base62Decode(encodedBytes);
-
-  for (let bit = 0; bit < 20; bit += 1) {
-    if (!(mask & (1 << bit))) continue;
-
-    const number = bitmapBitToNumber(bit, prefix);
-    if (number !== null) numbers.push(number);
-  }
-
-  return numbers;
-}
-
-function decodeCompactSection(section = "") {
-  const items = new Set();
-  if (!section) return items;
-
-  section.split(SHARE_GROUP_SEPARATOR).forEach((group) => {
-    if (decodeLooseShareGroup(group, items)) return;
-
-    const parts = group.split(SHARE_GROUP_VALUE_SEPARATOR);
-    const prefixToken = parts.shift();
-    const value = parts.join(SHARE_GROUP_VALUE_SEPARATOR);
-    if (prefixToken === SHARE_LOOSE_GROUP && !isCanonicalSparseShareValue(value)) {
-      parts.filter(Boolean).forEach((code) => items.add(code));
-      return;
-    }
-
-    const prefixIndex = Number.parseInt(prefixToken, 36);
-    const prefix = CODE_PREFIXES[prefixIndex];
-    if (!prefix || !value) return;
-
-    shareNumbers(value).forEach((number) => {
-      items.add(`${prefix}${number}`);
-    });
-  });
-
-  return items;
-}
-
-function shareNumbers(value) {
-  const numbers = [];
-
-  for (let index = 0; index < value.length; index += 1) {
-    if (isShareQuantityChar(value[index]) && index + 1 < value.length) {
-      index += 1;
-    }
-
-    const number = shareCharToNumber(value[index]);
-    if (number !== null) {
-      numbers.push(number);
-    }
-  }
-
-  return numbers;
-}
-
-function shareCharToNumber(char) {
-  if (char === "0") return 0;
-  const index = STICKER_NUMBER_CHARS.indexOf(char);
-  return index === -1 ? null : index + 1;
-}
-
-function isShareQuantityChar(char) {
-  return SHARE_QUANTITY_CHARS.includes(char);
-}
-
-function isCanonicalSparseShareValue(value) {
-  if (!value || value.includes(SHARE_GROUP_VALUE_SEPARATOR)) return false;
-
-  for (let index = 0; index < value.length; index += 1) {
-    if (isShareQuantityChar(value[index])) {
-      index += 1;
-      if (index >= value.length) return false;
-    }
-    if (shareCharToNumber(value[index]) === null) return false;
-  }
-
-  return true;
-}
-
-function decodeLooseShareGroup(group, items) {
-  if (!group.startsWith(SHARE_LOOSE_GROUP_PREFIX)) return false;
-  group
-    .slice(SHARE_LOOSE_GROUP_PREFIX.length)
-    .split(SHARE_GROUP_VALUE_SEPARATOR)
-    .filter(Boolean)
-    .forEach((code) => items.add(code));
-  return true;
-}
-
-function bitmapBitToNumber(bitIndex, prefix) {
-  if (bitIndex < 0 || bitIndex > 19) return null;
-  if (prefix === "FWC") return bitIndex;
-  return bitIndex + 1;
-}
-
-function base62Decode(value) {
-  return [...value].reduce((total, char) => {
-    const charValue = BASE62_CHARS.indexOf(char);
-    return charValue === -1 ? total : (total * 62) + charValue;
-  }, 0);
-}
 
 function renderTable() {
   const { userMissing, userRepeated, hasData } = decodeSharedData();
