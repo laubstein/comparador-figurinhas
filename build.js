@@ -12,7 +12,7 @@ const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const minifiedCss = minifyCss(css);
 const cssFile = `styles.${contentHash(minifiedCss)}.min.css`;
 const pages = [
-  { html: "index.html", scripts: ["sticker-data.js", "share-codec.js", "app.js"] },
+  { html: "index.html", scripts: ["sticker-data.js", "share-codec.js", "input-parser.js", "app.js"] },
   { html: "tabela.html", scripts: ["sticker-data.js", "share-codec.js", "table.js"] },
 ];
 const scriptFiles = new Map();

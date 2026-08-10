@@ -232,6 +232,39 @@
       </section>
     </main>
 
+    <dialog id="combinedPasteDialog" class="help-dialog paste-dialog" aria-labelledby="combinedPasteTitle">
+      <div class="help-card">
+        <div class="help-heading">
+          <div>
+            <p class="eyebrow">Listas encontradas</p>
+            <h2 id="combinedPasteTitle">Distribuir faltantes e repetidas?</h2>
+          </div>
+          <button id="closeCombinedPasteButton" class="icon-button" type="button" aria-label="Colar somente no campo atual">x</button>
+        </div>
+        <div class="help-content paste-dialog-content">
+          <p>
+            O texto possui listas de faltantes e repetidas. Posso distribuí-las nos campos de
+            <strong id="combinedPasteCollector"></strong>.
+          </p>
+          <fieldset class="paste-policy">
+            <legend>O que fazer com as figurinhas que já estão nesses campos?</legend>
+            <label>
+              <input type="radio" name="combinedPastePolicy" value="merge" checked>
+              <span><strong>Mesclar</strong> com as listas atuais</span>
+            </label>
+            <label>
+              <input type="radio" name="combinedPastePolicy" value="replace">
+              <span><strong>Limpar e substituir</strong> pelas listas coladas</span>
+            </label>
+          </fieldset>
+          <div class="paste-dialog-actions">
+            <button id="pasteOnlyHereButton" class="secondary" type="button">Colar somente aqui</button>
+            <button id="distributeCombinedPasteButton" type="button">Distribuir listas</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
       <div class="help-card">
         <div class="help-heading">
@@ -246,6 +279,14 @@
           <p>
             Preencha as listas que você possui e escolha uma estratégia. A proposta ou lista de possibilidades é atualizada
             automaticamente conforme os dados informados.
+          </p>
+          <p>
+            Se você colar um texto que contenha seções de <strong>faltantes</strong> e <strong>repetidas</strong> no mesmo
+            campo, o comparador perguntará se deve distribuí-las automaticamente. Escolha <strong>Mesclar</strong> para
+            manter as listas atuais e acrescentar as novas figurinhas, ou <strong>Limpar e substituir</strong> para usar
+            somente o conteúdo colado. A escolha vale para os dois campos da pessoa selecionada. O cabeçalho e sua lista
+            podem estar na mesma linha, como em <strong>Faltando: BRA 1, BRA 2</strong>. Frases como
+            <strong>Estas são minhas figurinhas repetidas</strong> também são reconhecidas.
           </p>
           <p>
             A tabela mostra apenas trocas em que uma figurinha sua falta para a outra pessoa e uma figurinha dela
@@ -318,14 +359,18 @@ FWC1, FWC3</code></pre>
 🇰🇷 KOR - 1, 7, 8
 🌎 FWC - 1, 4, 5</code></pre>
 
-          <h3>Formato por seleção com emoji</h3>
+          <h3>Formato combinado com emoji</h3>
           <pre><code>*Faltantes*
 SUI 🇨🇭: 5, 19
 FWC 🌎: 6
-CC 🥤: 5, 8, 10, 11</code></pre>
+CC 🥤: 5, 8, 10, 11
+
+*Repetidas*
+BRA 🇧🇷: 2, 7 (×3)
+KOR 🇰🇷: 4, 16</code></pre>
 
           <p>
-            Em repetidas, quando houver quantidade como <strong>KOR1 (x2)</strong>, ela é usada apenas para
+            Em repetidas, quando houver quantidade como <strong>KOR1 (x2)</strong> ou <strong>BRA 7 (×3)</strong>, ela é usada apenas para
             contar repetidas. A quantidade máxima considerada por figurinha é de <strong>35 unidades</strong>. Na proposta
             final, a mesma figurinha não será oferecida duas vezes para a mesma pessoa.
           </p>
@@ -363,6 +408,7 @@ CC 🥤: 5, 8, 10, 11</code></pre>
 
     <script src="sticker-data.js"></script>
     <script src="share-codec.js"></script>
+    <script src="input-parser.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

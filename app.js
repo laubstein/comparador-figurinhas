@@ -10,6 +10,11 @@ const tableButton = document.querySelector("#tableButton");
 const helpButton = document.querySelector("#helpButton");
 const closeHelpButton = document.querySelector("#closeHelpButton");
 const helpDialog = document.querySelector("#helpDialog");
+const combinedPasteDialog = document.querySelector("#combinedPasteDialog");
+const combinedPasteCollector = document.querySelector("#combinedPasteCollector");
+const closeCombinedPasteButton = document.querySelector("#closeCombinedPasteButton");
+const distributeCombinedPasteButton = document.querySelector("#distributeCombinedPasteButton");
+const pasteOnlyHereButton = document.querySelector("#pasteOnlyHereButton");
 const showNamesToggle = document.querySelector("#showNamesToggle");
 const strategyHelpButton = document.querySelector("#strategyHelpButton");
 const strategyHelp = document.querySelector("#strategyHelp");
@@ -55,15 +60,9 @@ const shareComparisonButton = document.querySelector("#shareComparisonButton");
 const tradeLegend = document.querySelector(".legend");
 const tradeStickerTooltip = document.querySelector("#tradeStickerTooltip");
 
-const selectionLineSimple = /(?:^|\s)([A-Z]{2,4})\s*-\s*((?:\d|00).*)$/;
-const selectionLineDecorated = /(?:^|\s)([A-Z]{2,4})\b[^:,-]*:\s*((?:\d|00).*)$/;
-const selectionLineSpaced = /(?:^|\s)([A-Z]{2,4})\s+((?:\d|00).*)$/;
-const codedSticker = /\b([A-Z]{2,4})\s*([0-9]{1,2})\b(?:\s*\(x\s*([0-9]+)\))?/gi;
-const inlineCodedSticker = /\b([A-Z]{2,4})\s+([0-9]{1,2})\b/g;
-const selectionSticker = /(\d+)(?:\s*\((?:[xX]\s*([0-9]+)|([0-9]+)\s*[xX])\))?/g;
-const zeroStickerAny = /\b00\b(?:\s*\(x\s*([0-9]+)\))?/gi;
 const { TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
 const TEAM_BY_CODE = Object.fromEntries(TEAMS.map((team) => [team.code, team]));
+const { parseList, parseCombinedLists, mergeStickerLists } = window.INPUT_PARSER;
 const {
   SHARE_PARAM,
   UTM_CAMPAIGN,
@@ -72,7 +71,6 @@ const {
   stickerInfo,
   compareSticker,
   groupItems,
-  addItem,
 } = window.SHARE_CODEC;
 let currentTrades = [];
 const ignoredTradeStickers = new Map();
@@ -110,6 +108,7 @@ const COPY_WHATSAPP_LABEL = "Copiar para WhatsApp";
 const SHARE_COMPARISON_LABEL = "Compartilhar Comparação";
 const FEEDBACK_TIMEOUT_MS = 1800;
 let urlSyncTimer = null;
+let pendingCombinedPaste = null;
 
 const TRADE_STRATEGIES = {
   BRIGHT: "0",
@@ -171,85 +170,6 @@ const STRATEGY_TEXTS = {
   },
 };
 
-function parseList(rawText, mode) {
-  const items = new Map();
-  const text = rawText
-    .normalize("NFKC")
-    .replace(/\bFCW\b/g, "FWC")
-    .toUpperCase()
-    // Descarta cromos Coca-Cola regionais (CC-US1, CC-LAM14, CCSRB6...) que não
-    // fazem parte do álbum aqui modelado; evita colisão com times como ESP (CC-ESP1).
-    .replace(/\bCC-?[A-Z]{2,3}[0-9]{1,2}\b/g, " ");
-
-  text.split(/\r?\n/).forEach((line) => {
-    if (!isInlineCodedList(line)) {
-      const selectionLine = parseSelectionLine(line);
-      if (selectionLine) {
-        selectionLine.stickers.forEach(({ number, quantity }) => {
-          addItem(items, stickerCode(selectionLine.prefix, number), mode === "repeated" ? quantity : 1);
-        });
-        return;
-      }
-    }
-
-    for (const match of line.matchAll(codedSticker)) {
-      const prefix = normalizePrefix(match[1]);
-      if (!TEAM_BY_CODE[prefix]) continue;
-      const code = stickerCode(prefix, Number(match[2]));
-      const quantity = mode === "repeated" ? Number(match[3] || 1) : 1;
-      addItem(items, code, quantity);
-    }
-
-    for (const match of line.matchAll(zeroStickerAny)) {
-      const quantity = mode === "repeated" ? Number(match[1] || 1) : 1;
-      addItem(items, "FWC0", quantity);
-    }
-
-  });
-
-  return items;
-}
-
-// Formato "inline": vários países numa linha só, cada cromo prefixado pelo código
-// (ex.: "Duplicados: Mexico: MEX 3, MEX 5, MEX 7... South Africa: RSA 2..."). Nesse caso
-// não deixamos parseSelectionLine sequestrar a linha; cada "COD N" vira um cromo.
-function isInlineCodedList(line) {
-  const seen = new Set();
-  for (const match of line.matchAll(inlineCodedSticker)) {
-    const prefix = normalizePrefix(match[1]);
-    if (!TEAM_BY_CODE[prefix]) continue;
-    seen.add(prefix);
-    if (seen.size >= 2) return true;
-  }
-  return false;
-}
-
-function parseSelectionLine(line) {
-  const match = line.match(selectionLineSimple) || line.match(selectionLineDecorated) || line.match(selectionLineSpaced);
-  if (!match) return null;
-  const prefix = normalizePrefix(match[1]);
-  if (!TEAM_BY_CODE[prefix]) return null;
-
-  const stickers = [...match[2].matchAll(selectionSticker)].map((stickerMatch) => ({
-    number: Number(stickerMatch[1]),
-    quantity: Number(stickerMatch[2] || stickerMatch[3] || 1),
-  }));
-
-  if (stickers.length === 0) return null;
-  return {
-    prefix,
-    stickers,
-  };
-}
-
-function normalizePrefix(prefix) {
-  return prefix === "FCW" ? "FWC" : prefix;
-}
-
-function stickerCode(prefix, number) {
-  return `${prefix}${prefix === "FWC" && number === 0 ? 0 : number}`;
-}
-
 function totalQuantity(items) {
   return [...items.values()].reduce((sum, value) => sum + value, 0);
 }
@@ -266,6 +186,79 @@ function getParsedInputs() {
     friendMissing: parseList(fields.friendMissing.value, "missing"),
     friendRepeated: parseList(fields.friendRepeated.value, "repeated"),
   };
+}
+
+function handleFieldPaste(fieldName, event) {
+  const rawText = event.clipboardData?.getData("text/plain");
+  const combined = parseCombinedLists(rawText);
+  if (!combined) return;
+
+  event.preventDefault();
+  const field = fields[fieldName];
+  pendingCombinedPaste = {
+    fieldName,
+    rawText,
+    combined,
+    selectionStart: field.selectionStart ?? field.value.length,
+    selectionEnd: field.selectionEnd ?? field.value.length,
+  };
+  const side = fieldName.startsWith("user") ? "user" : "friend";
+  combinedPasteCollector.textContent = collectorName(side);
+  combinedPasteDialog.querySelector("input[value='merge']").checked = true;
+  openCombinedPasteDialog();
+}
+
+function openCombinedPasteDialog() {
+  if (typeof combinedPasteDialog.showModal === "function") {
+    combinedPasteDialog.showModal();
+  } else {
+    combinedPasteDialog.setAttribute("open", "");
+  }
+  document.body.classList.add("dialog-open");
+}
+
+function completeCombinedPaste(action) {
+  const pending = pendingCombinedPaste;
+  if (!pending) return;
+  pendingCombinedPaste = null;
+
+  if (action === "distribute") {
+    distributeCombinedLists(pending);
+  } else {
+    insertOriginalPaste(pending);
+  }
+
+  if (combinedPasteDialog.open && typeof combinedPasteDialog.close === "function") {
+    combinedPasteDialog.close();
+  } else {
+    combinedPasteDialog.removeAttribute("open");
+    document.body.classList.remove("dialog-open");
+  }
+}
+
+function distributeCombinedLists({ fieldName, combined }) {
+  const side = fieldName.startsWith("user") ? "user" : "friend";
+  const missingField = fields[`${side}Missing`];
+  const repeatedField = fields[`${side}Repeated`];
+  const policy = combinedPasteDialog.querySelector("input[name='combinedPastePolicy']:checked")?.value;
+  const missing = policy === "merge"
+    ? mergeStickerLists(parseList(missingField.value, "missing"), combined.missing, "missing")
+    : combined.missing;
+  const repeated = policy === "merge"
+    ? mergeStickerLists(parseList(repeatedField.value, "repeated"), combined.repeated, "repeated")
+    : combined.repeated;
+
+  missingField.value = formatSelectionList(missing, "missing");
+  repeatedField.value = formatSelectionList(repeated, "repeated");
+  fields[fieldName].focus();
+  handleFormChanged();
+}
+
+function insertOriginalPaste({ fieldName, rawText, selectionStart, selectionEnd }) {
+  const field = fields[fieldName];
+  field.setRangeText(rawText, selectionStart, selectionEnd, "end");
+  field.focus();
+  handleFormChanged();
 }
 
 function convertPanelFormat(target, format) {
@@ -1519,6 +1512,9 @@ document.querySelectorAll("[data-format-target][data-format]").forEach((button) 
 Object.values(fields).forEach((field) => {
   field.addEventListener("input", handleFormChanged);
 });
+Object.entries(fields).forEach(([fieldName, field]) => {
+  field.addEventListener("paste", (event) => handleFieldPaste(fieldName, event));
+});
 showNamesToggle.addEventListener("change", () => {
   if (!hasCompared) return;
   renderTrades(currentTrades);
@@ -1551,6 +1547,24 @@ helpDialog.addEventListener("click", (event) => {
   if (event.target === helpDialog) {
     helpDialog.close();
   }
+});
+
+distributeCombinedPasteButton.addEventListener("click", () => completeCombinedPaste("distribute"));
+pasteOnlyHereButton.addEventListener("click", () => completeCombinedPaste("paste"));
+closeCombinedPasteButton.addEventListener("click", () => completeCombinedPaste("paste"));
+
+combinedPasteDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  completeCombinedPaste("paste");
+});
+
+combinedPasteDialog.addEventListener("close", () => {
+  document.body.classList.remove("dialog-open");
+  if (pendingCombinedPaste) completeCombinedPaste("paste");
+});
+
+combinedPasteDialog.addEventListener("click", (event) => {
+  if (event.target === combinedPasteDialog) completeCombinedPaste("paste");
 });
 
 document.addEventListener("click", (event) => {

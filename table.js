@@ -1,9 +1,12 @@
 const { SHARE_PARAM, UTM_CAMPAIGN, decodeSharePayload, codeSet } = window.SHARE_CODEC;
 const STICKERS_PER_TEAM = 20;
+const CC_STICKERS = 14;
 const { TEAMS: ALL_TEAMS, STICKER_NAMES, displayStickerCode } = window.STICKER_DATA;
 const TEAMS = ALL_TEAMS.filter(({ code }) => code !== "FWC" && code !== "CC");
 const FWC_TEAM = ALL_TEAMS.find(({ code }) => code === "FWC");
-const ALBUM_ROWS = [...TEAMS, FWC_TEAM];
+const CC_TEAM = ALL_TEAMS.find(({ code }) => code === "CC");
+const SPECIAL_ROWS = [FWC_TEAM, CC_TEAM].filter(Boolean);
+const ALBUM_ROWS = [...TEAMS, ...SPECIAL_ROWS];
 const ALBUM_ROW_BY_CODE = Object.fromEntries(ALBUM_ROWS.map((row) => [row.code, row]));
 
 const tableHead = document.querySelector("#albumTableHead");
@@ -92,7 +95,7 @@ function countTeamCodes(items) {
 }
 
 function isTeamSticker(code) {
-  const match = code.match(/^([A-Z]{3})(\d{1,2})$/);
+  const match = code.match(/^([A-Z]{2,4})(\d{1,2})$/);
   if (!match) return false;
   const number = Number(match[2]);
   const team = ALBUM_ROW_BY_CODE[match[1]];
@@ -123,7 +126,7 @@ function renderHeader() {
 }
 
 function renderBody(userMissing, userRepeated, hasData) {
-  const teams = [...TEAMS].sort(sortByGroup ? compareByGroup : compareByCode).concat(FWC_TEAM);
+  const teams = [...TEAMS].sort(sortByGroup ? compareByGroup : compareByCode).concat(SPECIAL_ROWS);
   const rows = teams.map((team, rowIndex) => {
     const row = document.createElement("tr");
     addTextCell(row, team.group || "-", "group-cell");
@@ -132,8 +135,14 @@ function renderBody(userMissing, userRepeated, hasData) {
 
     for (let column = 1; column <= STICKERS_PER_TEAM; column += 1) {
       const number = stickerNumberForColumn(team, column);
-      const code = `${team.code}${number}`;
       const cell = document.createElement("td");
+      if (number === null) {
+        cell.className = "album-empty";
+        row.append(cell);
+        continue;
+      }
+
+      const code = `${team.code}${number}`;
       const tooltip = formatStickerTooltip(code, team);
       cell.textContent = number;
       cell.setAttribute("aria-label", tooltip);
@@ -166,12 +175,14 @@ function compareByCode(a, b) {
 }
 
 function stickerNumbersForTeam(team) {
-  return Array.from({ length: STICKERS_PER_TEAM }, (_, index) => {
+  const length = team.code === "CC" ? CC_STICKERS : STICKERS_PER_TEAM;
+  return Array.from({ length }, (_, index) => {
     return team.code === "FWC" ? index : index + 1;
   });
 }
 
 function stickerNumberForColumn(team, column) {
+  if (team.code === "CC" && column > CC_STICKERS) return null;
   return team.code === "FWC" ? column - 1 : column;
 }
 

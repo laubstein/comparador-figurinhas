@@ -834,6 +834,10 @@ tfoot td {
   background: rgba(11, 22, 38, 0.62);
 }
 
+.paste-dialog {
+  width: min(560px, calc(100% - 28px));
+}
+
 .help-card {
   overflow: hidden;
   background: var(--paper);
@@ -865,6 +869,45 @@ tfoot td {
 .help-content h3 {
   margin: 18px 0 8px;
   font-size: 0.95rem;
+}
+
+.paste-dialog-content {
+  display: grid;
+  gap: 16px;
+}
+
+.paste-dialog-content > p {
+  margin: 0;
+}
+
+.paste-policy {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.paste-policy legend {
+  padding: 0 6px;
+  color: #344054;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.paste-policy label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.paste-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .help-section {
@@ -1065,6 +1108,10 @@ tfoot td {
 .legend-cell.missing,
 .album-missing {
   background: #ffffff;
+}
+
+.album-empty {
+  background: #eef1f5;
 }
 
 .album-table-wrap {
