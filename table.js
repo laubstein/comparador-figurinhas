@@ -71,15 +71,9 @@ function renderColumns() {
 }
 
 function countOwnedStickers(userMissing, userRepeated, hasData) {
-  if (!hasData) return 0;
-  let total = 0;
-  ALBUM_ROWS.forEach((team) => {
-    for (const number of stickerNumbersForTeam(team)) {
-      const code = `${team.code}${number}`;
-      if (!userMissing.has(code) || userRepeated.has(code)) total += 1;
-    }
-  });
-  return total;
+  return ALBUM_ROWS.reduce((total, team) => {
+    return total + teamProgress(team, userMissing, userRepeated, hasData).owned;
+  }, 0);
 }
 
 function countAlbumStickers() {
@@ -131,7 +125,7 @@ function renderBody(userMissing, userRepeated, hasData) {
     const row = document.createElement("tr");
     addTextCell(row, team.group || "-", "group-cell");
     addTextCell(row, team.code, "code-cell");
-    addTextCell(row, team.country, "country-cell");
+    addCountryCell(row, team, teamProgress(team, userMissing, userRepeated, hasData));
 
     for (let column = 1; column <= STICKERS_PER_TEAM; column += 1) {
       const number = stickerNumberForColumn(team, column);
@@ -149,7 +143,7 @@ function renderBody(userMissing, userRepeated, hasData) {
       cell.tabIndex = 0;
       cell.dataset.tooltip = tooltip;
 
-      const hasSticker = hasData && (!userMissing.has(code) || userRepeated.has(code));
+      const hasSticker = ownsSticker(code, userMissing, userRepeated, hasData);
       if (!hasSticker) {
         cell.className = "album-missing";
       } else {
@@ -163,6 +157,23 @@ function renderBody(userMissing, userRepeated, hasData) {
   });
 
   tableBody.replaceChildren(...rows);
+}
+
+function ownsSticker(code, userMissing, userRepeated, hasData) {
+  return hasData && (!userMissing.has(code) || userRepeated.has(code));
+}
+
+function teamProgress(team, userMissing, userRepeated, hasData) {
+  const numbers = stickerNumbersForTeam(team);
+  const owned = numbers.reduce((total, number) => {
+    const code = `${team.code}${number}`;
+    return total + (ownsSticker(code, userMissing, userRepeated, hasData) ? 1 : 0);
+  }, 0);
+  const total = numbers.length;
+  const missing = total - owned;
+  const percentage = Math.round((owned / total) * 100);
+  const status = percentage === 100 ? "complete" : percentage <= 20 ? "low" : "partial";
+  return { owned, missing, total, percentage, status };
 }
 
 function compareByGroup(a, b) {
@@ -196,6 +207,44 @@ function addTextCell(row, text, className) {
   cell.className = className;
   cell.textContent = text;
   row.append(cell);
+}
+
+function addCountryCell(row, team, progress) {
+  const cell = document.createElement("td");
+  const tooltip = formatProgressTooltip(progress);
+  cell.className = "country-cell";
+  cell.tabIndex = 0;
+  cell.dataset.tooltip = tooltip;
+  cell.setAttribute("aria-label", `${team.country}: ${progress.percentage}% completo. ${tooltip}`);
+
+  const content = document.createElement("span");
+  content.className = "country-progress-content";
+
+  const name = document.createElement("span");
+  name.className = "country-name";
+  name.textContent = team.country;
+
+  const bar = document.createElement("span");
+  bar.className = `team-progress team-progress-${progress.status}`;
+  bar.setAttribute("role", "progressbar");
+  bar.setAttribute("aria-label", `${team.country}: ${progress.percentage}% completo`);
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", "100");
+  bar.setAttribute("aria-valuenow", String(progress.percentage));
+
+  const fill = document.createElement("span");
+  fill.className = "team-progress-fill";
+  fill.style.width = `${progress.percentage}%`;
+  bar.append(fill);
+  content.append(name, bar);
+  cell.append(content);
+  row.append(cell);
+}
+
+function formatProgressTooltip(progress) {
+  const verb = progress.missing === 1 ? "Falta" : "Faltam";
+  const noun = progress.missing === 1 ? "figurinha" : "figurinhas";
+  return `${verb} ${progress.missing} ${noun} de ${progress.total}.`;
 }
 
 function formatStickerTooltip(code, team) {

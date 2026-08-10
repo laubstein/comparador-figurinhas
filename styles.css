@@ -1182,6 +1182,60 @@ tfoot td {
   overflow-wrap: normal;
 }
 
+.country-progress-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.country-name {
+  min-width: 0;
+}
+
+.team-progress {
+  width: 54px;
+  height: 7px;
+  flex: 0 0 54px;
+  overflow: hidden;
+  background: #dfe5ec;
+  border: 1px solid #aeb8c5;
+  border-radius: 999px;
+}
+
+.team-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.team-progress-low .team-progress-fill {
+  background: #d92d20;
+}
+
+.team-progress-low {
+  background: #fee4e2;
+  border-color: #d92d20;
+}
+
+.team-progress-partial .team-progress-fill {
+  background: #f4b400;
+}
+
+.team-progress-partial {
+  background: #fff4cc;
+  border-color: #d39e00;
+}
+
+.team-progress-complete .team-progress-fill {
+  background: #16853b;
+}
+
+.team-progress-complete {
+  background: #dcfce7;
+  border-color: #16853b;
+}
+
 .sticker-tooltip {
   position: fixed;
   z-index: 30;
@@ -1576,6 +1630,23 @@ tfoot td {
   .album-table .country-cell {
     white-space: normal;
     overflow-wrap: break-word;
+  }
+
+  .country-progress-content {
+    gap: 2px;
+  }
+
+  .team-progress {
+    width: 10mm;
+    height: 1.5mm;
+    flex-basis: 10mm;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .team-progress-fill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .album-have-a,
